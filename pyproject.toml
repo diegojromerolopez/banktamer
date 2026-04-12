@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["banktamer"]
+
+[tool.hatch.build.targets.sdist]
+include = ["banktamer"]
+
+[project]
+name = "banktamer"
+version = "0.1.0"
+description = "A CLI tool to categorize and analyze bank transaction exports (XLS/XLSX)."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "openpyxl>=3.1.5",
+    "pandas>=3.0.2",
+    "pyyaml>=6.0.3",
+    "xlrd>=2.0.2",
+]
+
+[project.scripts]
+banktamer = "banktamer.cli:main"
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true
+pretty = true
+show_error_codes = true
+
+[dependency-groups]
+dev = [
+    "coverage>=7.13.5",
+    "mypy>=1.20.0",
+    "pandas-stubs>=3.0.0.260204",
+    "ruff>=0.15.10",
+    "types-pyyaml>=6.0.12.20260408",
+]

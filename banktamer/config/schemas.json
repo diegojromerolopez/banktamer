@@ -1,0 +1,17 @@
+{
+  "santander": {
+    "date_col": "FECHA OPERACIÓN",
+    "concept_col": "CONCEPTO",
+    "amount_col": "IMPORTE EUR",
+    "date_format": "%d/%m/%Y",
+    "skiprows": 7
+  },
+  "caja-rural": {
+    "date_col": "Fecha",
+    "concept_col": "Descripción",
+    "income_col": "Abonos",
+    "expense_col": "Cargos",
+    "date_format": "%Y-%m-%d",
+    "skiprows": 0
+  }
+}
