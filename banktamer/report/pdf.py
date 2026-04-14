@@ -1,4 +1,3 @@
-import math
 import os
 from fpdf import FPDF
 from banktamer.analytics import MonthReport
@@ -132,9 +131,7 @@ class PDFReporter(FPDF):
                 if stats.max_txn:
                     amount_txt = f"{stats.max_txn.amount:,.2f}"
                     concept_txt = (
-                        f"{stats.max_txn.concept[:45]}..."
-                        if len(stats.max_txn.concept) > 45
-                        else stats.max_txn.concept
+                        f"{stats.max_txn.concept[:45]}..." if len(stats.max_txn.concept) > 45 else stats.max_txn.concept
                     )
                     max_txn_txt = f"{amount_txt} ({concept_txt})"
                 self.cell(col_widths[3], 8, max_txn_txt, border=1, align="L", new_x="LMARGIN", new_y="NEXT")
@@ -184,6 +181,8 @@ class PDFReporter(FPDF):
                 self.set_font("helvetica", "", 9)
                 self.set_text_color(*dark)
                 for dt, amt, concept in sorted(data["unknown_concepts"], key=lambda x: x[0]):
-                    self.cell(0, 5, f"{dt} | {amt:,.2f} | {concept}", border=0, align="L", new_x="LMARGIN", new_y="NEXT")
+                    self.cell(
+                        0, 5, f"{dt} | {amt:,.2f} | {concept}", border=0, align="L", new_x="LMARGIN", new_y="NEXT"
+                    )
 
         self.output(output_path)

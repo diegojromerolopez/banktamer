@@ -129,7 +129,12 @@ class TestCli(unittest.TestCase):
     @patch("builtins.print")
     @patch("sys.exit")
     def test_main_error(
-        self, mock_exit: MagicMock, mock_print: MagicMock, mock_file: MagicMock, mock_args: MagicMock, mock_reader: MagicMock
+        self,
+        mock_exit: MagicMock,
+        mock_print: MagicMock,
+        mock_file: MagicMock,
+        mock_args: MagicMock,
+        mock_reader: MagicMock,
     ) -> None:
         mock_args.return_value = MagicMock(
             bank="santander",
@@ -151,6 +156,7 @@ class TestCli(unittest.TestCase):
     @patch("os.path.exists")
     def test_resolve_config_defaults(self, mock_exists: MagicMock) -> None:
         from banktamer.cli import resolve_config
+
         args = MagicMock(config_dir=None, schemas=None, rules_dir=None)
         mock_exists.return_value = True
         config = resolve_config(args)
@@ -199,7 +205,7 @@ class TestCli(unittest.TestCase):
         mock_exists.return_value = True
 
         # open_side_effect to return different content for default and specific
-        def open_side_effect(path: str, *args: list[Any], **kwargs: dict[str, Any]) -> MagicMock:
+        def open_side_effect(path: str, *args: list[Any], **kwargs: dict[str, Any]) -> Any:
             if ".default.yaml" in str(path):
                 return mock_open(read_data=yaml.dump({"General": ["Tax"]})).return_value
             return mock_open(read_data=yaml.dump({"General": ["Other"], "Utilities": ["Gas"]})).return_value
@@ -210,6 +216,42 @@ class TestCli(unittest.TestCase):
             self.assertIn("Utilities", rules)
             self.assertEqual(rules["General"], ["Tax", "Other"])  # Merged
             self.assertEqual(rules["Utilities"], ["Gas"])
+
+    @patch("os.path.exists")
+    @patch("os.path.expanduser")
+    @patch("sys.frozen", True, create=True)
+    @patch("sys._MEIPASS", "/frozen_dir", create=True)
+    def test_resolve_config_frozen(self, mock_expanduser: MagicMock, mock_exists: MagicMock) -> None:
+        from banktamer.cli import resolve_config
+
+        args = MagicMock(config_dir=None, schemas=None, rules_dir=None)
+        mock_expanduser.side_effect = lambda x: x.replace("~", "/home/user")
+        # 1. config/schemas.json (False)
+        # 2. /home/user/.banktamer/config/schemas.json (False)
+        # 3. /frozen_dir/banktamer/config/schemas.json (True)
+        mock_exists.side_effect = [False, False, True]
+
+        config = resolve_config(args)
+        self.assertEqual(config["schemas"], "/frozen_dir/banktamer/config/schemas.json")
+
+    @patch("banktamer.cli.run_pipeline")
+    @patch("argparse.ArgumentParser.parse_args")
+    @patch("builtins.print")
+    @patch("sys.exit")
+    def test_main_unexpected_error(
+        self, mock_exit: MagicMock, mock_print: MagicMock, mock_args: MagicMock, mock_run: MagicMock
+    ) -> None:
+        mock_args.return_value = MagicMock(
+            bank="santander", files=["test.xlsx"], config_dir=None, schemas=None, rules_dir=None
+        )
+        mock_run.side_effect = Exception("Surprise error")
+
+        with patch("banktamer.cli.resolve_config"):
+            main()
+
+        mock_exit.assert_called_with(1)
+        mock_print.assert_any_call("Unexpected Error: Surprise error", file=sys.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,20 +1,24 @@
 import unittest
 import subprocess
-import os
 import shutil
 import tempfile
 import sys
 from pathlib import Path
 
+
 class TestBinaryE2E(unittest.TestCase):
     """End-to-end tests for the compiled BankTamer binary."""
+
+    workspace_root: Path
+    dist_dir: Path
+    binary_path: Path
 
     @classmethod
     def setUpClass(cls) -> None:
         """Build the binary once for all tests in this class."""
         cls.workspace_root = Path(__file__).parent.parent.parent.absolute()
         cls.dist_dir = cls.workspace_root / "dist"
-        
+
         # Determine binary name based on OS
         suffix = ".exe" if sys.platform == "win32" else ""
         cls.binary_path = cls.dist_dir / f"banktamer{suffix}"
@@ -24,23 +28,18 @@ class TestBinaryE2E(unittest.TestCase):
             print(f"Binary found at {cls.binary_path}, skipping Nuitka build.")
         else:
             print(f"Building binary with Nuitka in {cls.workspace_root}... (this may take a few minutes)")
-            
+
             # Find uv path
-            uv_path = "/opt/homebrew/bin/uv"
-            if not os.path.exists(uv_path):
-                uv_path = shutil.which("uv") or "uv"
+            uv_path = shutil.which("uv") or "uv"
 
             result = subprocess.run(
-                [uv_path, "run", "make", "dist-exe"],
-                cwd=str(cls.workspace_root),
-                capture_output=True,
-                text=True
+                [uv_path, "run", "make", "dist-exe"], cwd=str(cls.workspace_root), capture_output=True, text=True
             )
-            
+
             if result.returncode != 0:
                 print(f"Build failed!\nSTDOUT: {result.stdout}\nSTDERR: {result.stderr}")
                 raise RuntimeError("Failed to build the binary for E2E tests.")
-        
+
         if not cls.binary_path.exists():
             raise FileNotFoundError(f"Binary not found at {cls.binary_path} after build.")
 
@@ -58,11 +57,12 @@ class TestBinaryE2E(unittest.TestCase):
         """Verify the binary processes Revolut data using its bundled configuration."""
         # 1. Prepare data
         import pandas as pd
+
         excel_path = self.test_dir / "revolut_data.xlsx"
         data = {
             "Started Date": ["2024-01-01 10:00:00", "2024-01-05 15:30:00"],
             "Description": ["MERCADONA SUPERMERCADO", "AMAZON LUXEMBOURG"],
-            "Amount": [-45.50, -120.00]
+            "Amount": [-45.50, -120.00],
         }
         pd.DataFrame(data).to_excel(excel_path, index=False)
 
@@ -71,13 +71,13 @@ class TestBinaryE2E(unittest.TestCase):
             [str(self.binary_path), "--bank", "revolut", "--category", "example", "--files", str(excel_path)],
             cwd=str(self.test_dir),
             capture_output=True,
-            text=True
+            text=True,
         )
 
         # 3. Verify success and output content
         self.assertEqual(result.returncode, 0, f"Binary failed with: {result.stderr}")
         output = result.stdout
-        
+
         # Check for reports and categories
         self.assertIn("REPORT FOR 2024-01", output)
         self.assertIn("Grocery shopping", output)
@@ -89,10 +89,7 @@ class TestBinaryE2E(unittest.TestCase):
     def test_help_command(self) -> None:
         """Verify the binary help command works."""
         result = subprocess.run(
-            [str(self.binary_path), "--help"],
-            cwd=str(self.test_dir),
-            capture_output=True,
-            text=True
+            [str(self.binary_path), "--help"], cwd=str(self.test_dir), capture_output=True, text=True
         )
         self.assertEqual(result.returncode, 0)
         self.assertIn("BankTamer CLI", result.stdout)
@@ -104,12 +101,13 @@ class TestBinaryE2E(unittest.TestCase):
             [str(self.binary_path), "--bank", "unknown-bank", "--files", "dummy.xlsx"],
             cwd=str(self.test_dir),
             capture_output=True,
-            text=True
+            text=True,
         )
         # Should exit with error
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Configuration or Data Error", result.stderr)
         self.assertIn("unknown-bank", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

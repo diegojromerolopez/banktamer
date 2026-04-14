@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, mock_open
+from unittest.mock import patch
 import pandas as pd
 import json
 from typing import Any
@@ -73,7 +73,7 @@ class TestExcelReader(unittest.TestCase):
         reader = ExcelReader(self.schemas)
         with self.assertRaises(ValueError) as cm:
             reader.read("test_bank_unified", "dummy.xlsx")
-        self.assertIn("Missing required columns", str(cm.exception))
+        self.assertIn("None of the columns", str(cm.exception))
 
     def test_invalid_bank(self) -> None:
         reader = ExcelReader(self.schemas)
@@ -85,9 +85,9 @@ class TestExcelReader(unittest.TestCase):
     def test_malformed_rows_skipped(self, mock_read_excel: Any) -> None:
         df = pd.DataFrame(
             {
-                "Date": ["2024-01-01", "invalid-date", "2024-01-03"],
-                "Concept": ["Valid", "Invalid", "Valid"],
-                "Amount": [100.0, "not-a-number", 200.0],
+                "Date": ["2024-01-01", "invalid-date", "2024-01-02", "2024-01-03"],
+                "Concept": ["Valid", "Invalid Date", "Invalid Amount", "Valid"],
+                "Amount": [100.0, 100.0, "not-a-number", 200.0],
             }
         )
         mock_read_excel.return_value = df
@@ -95,7 +95,10 @@ class TestExcelReader(unittest.TestCase):
         reader = ExcelReader(self.schemas)
         txns = reader.read("test_bank_unified", "dummy.xlsx")
 
-        # Should skip the middle row
+        # Row 1: Valid
+        # Row 2: Invalid Date -> Caught at 62-63, continues at 66
+        # Row 3: Invalid Amount -> Caught at 86-88
+        # Row 4: Valid
         self.assertEqual(len(txns), 2)
         self.assertEqual(txns[0].concept, "Valid")
         self.assertEqual(txns[1].concept, "Valid")

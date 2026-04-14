@@ -14,6 +14,7 @@
 - **Visual Insights**: Automatic generation of colorful terminal bar charts and financial distribution pie charts.
 - **Modern Reporting**: Export options to professional PDF documents for easy sharing and record keeping.
 - **Modern Tooling**: Managed with `uv` for high performance and strict type safety.
+- **Standalone Distribution**: Ability to compile into a single-file executable for Linux, macOS, and Windows using Nuitka.
 - **CI/CD Ready**: GitHub Actions pipeline for automated formatting, linting, and 100% test coverage verification.
 
 ---
@@ -31,9 +32,13 @@ Clone the repository and install dependencies locally:
 make install
 ```
 
-### Global Installation (Recommended)
+### Installation Options
 
-To install `banktamer` as a global command on your system, it is recommended to use `pipx`:
+#### 1. Standalone Binary (Recommended for non-developers)
+Download the latest `banktamer` executable for your OS from the [GitHub Releases](https://github.com/diegojromerolopez/banktamer/releases) page. No Python installation is required to run the binary.
+
+#### 2. Global Installation (via `pipx`)
+To install `banktamer` as a global command on your system:
 
 ```bash
 # From the local repository
@@ -42,8 +47,6 @@ pipx install .
 # Or from Git directly
 pipx install git+https://github.com/diegojromerolopez/banktamer.git
 ```
-
-Once installed, you can run `banktamer` from anywhere.
 
 ### Configuration
 
@@ -88,7 +91,7 @@ If you prefer not to use `make`, you can run the tool directly using `uv run`:
 uv run python -m banktamer.cli --bank santander --category common --files path/to/file.xlsx
 ```
 
-### Configuration
+### Configuration Details
 
 #### Bank Schemas (`config/schemas.json`)
 Defines column mappings and date formats.
@@ -103,7 +106,6 @@ Add regex patterns to classify transactions. Categories are independent of the b
 
 #### Default Rules (`config/categories/.default.yaml`)
 If present, rules in `.default.yaml` are always applied. If a specific `--category` is provided, its rules are merged with the default ones.
-
 ---
 
 ## Developer Guide
@@ -112,19 +114,17 @@ If present, rules in `.default.yaml` are always applied. If a specific `--catego
 
 ```text
 banktamer/
-├── assets/              # Project assets (logo, etc.)
 ├── banktamer/           # Core source code
 │   ├── analytics.py     # Aggregation logic
 │   ├── categorizer.py   # Regex engine
 │   ├── cli.py           # Entry point & CLI logic
 │   ├── config/          # Bundled JSON schemas & YAML rules (DEFAULTS)
 │   ├── io.py            # Excel ingestion
-│   ├── models.py        # Data structures
-│   └── report/          # Reporting engine
-│       ├── terminal.py  # Terminal visualization (always on)
-│       └── pdf.py       # Professional PDF generation
+│   ├── report/          # Reporting engine
 ├── tests/
-│   └── unit/            # Unit tests (100% coverage mandatory)
+│   ├── unit/            # Unit tests (100% coverage mandatory)
+│   ├── integration/     # Integration tests (verifying banks & happy paths)
+│   └── e2e/             # End-to-end tests (verifying compiled binary)
 ├── GEMINI.md            # Critical AI/Developer coding rules
 ├── Makefile             # Development automation
 └── pyproject.toml       # Dependencies & Config
@@ -134,16 +134,45 @@ banktamer/
 
 Use the provided `Makefile` for standard tasks:
 
-- **Format code**: `make format` (Uses `black` and `ruff`)
-- **Lint code**: `make lint` (Uses `flake8`, `ruff`, and `mypy`)
-- **Run tests**: `make test` (Executes tests in `tests/unit`)
-- **Sync dependencies**: `make install`
+- **Format code**: `make format`
+- **Lint code**: `make lint` (Ruff & Mypy)
+- **Run all tests**: `make test-all`
+- **Build standalone binary**: `make dist-exe`
+
+### Testing Strategy
+
+`banktamer` follows a strict testing hierarchy to ensure reliability:
+
+1.  **Unit Tests (`tests/unit`)**: Fast tests focusing on individual functions and classes. **100% code coverage is mandatory.**
+2.  **Integration Tests (`tests/integration`)**:
+    - **Schema Verification**: Every bank defined in `config/schemas.json` is automatically verified against generated Excel files to ensure parsing logic is correct.
+    - **Happy Paths**: End-to-end functional flows for different bank formats (unified vs. split amounts).
+3.  **E2E Tests (`tests/e2e`)**: Verifies that the compiled Nuitka binary works correctly in an isolated environment using bundled configuration.
+
+Run specific test suites:
+
+```bash
+make test             # Unit tests only
+make test-integration # Integration tests only
+make test-e2e         # E2E tests (builds binary if missing)
+make test-all         # All of the above
+```
+
+### Standalone Executable (Nuitka)
+
+`banktamer` can be compiled into a standalone executable that includes the Python interpreter, dependencies, and default configuration.
+
+```bash
+make dist-exe
+```
+
+The resulting binary will be located in the `dist/` directory. This is the same process used by the CI pipeline to generate GitHub Releases.
 
 ### Adding a New Bank
 
 1.  Add the column mapping to `config/schemas.json`.
 2.  Assign an existing category file or create a new one in `config/categories/<category>.yaml`.
-3.  Test it with `make run args="..."`.
+3.  **Run integration tests**: `make test-integration`. The schema verification test will automatically pick up your new bank and verify it parses correctly.
 
 ### Coding Standards
 

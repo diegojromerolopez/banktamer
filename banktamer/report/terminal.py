@@ -1,5 +1,14 @@
 import math
+from typing import TypedDict
 from banktamer.analytics import MonthReport, CategoryStats
+
+
+class SliceInfo(TypedDict):
+    """Structure for pie chart slice information."""
+
+    start: float
+    end: float
+    color: str
 
 
 def print_report(report_data: dict[str, MonthReport]) -> None:
@@ -24,7 +33,7 @@ def print_report(report_data: dict[str, MonthReport]) -> None:
 
         # Filter categories with non-zero absolute total for sorting/charts
         categories_to_plot = {cat: stats for cat, stats in data["categories"].items() if abs(stats.total) > 0}
-        
+
         # Sort categories by total absolute amount
         sorted_categories = sorted(categories_to_plot.items(), key=lambda x: abs(x[1].total), reverse=True)
 
@@ -43,7 +52,7 @@ def print_report(report_data: dict[str, MonthReport]) -> None:
                 color = palette_expenses[expense_color_idx % len(palette_expenses)]
                 expense_color_idx += 1
                 total_for_percent = data["total_expenses"]
-            
+
             percentage = (stats.total / total_for_percent * 100) if total_for_percent != 0 else 0.0
             category_colors[cat] = color
 
@@ -76,14 +85,12 @@ def print_report(report_data: dict[str, MonthReport]) -> None:
             render_pie_chart(sorted_categories, category_colors)
 
 
-def render_pie_chart(
-    sorted_categories: list[tuple[str, CategoryStats]], category_colors: dict[str, str]
-) -> None:
+def render_pie_chart(sorted_categories: list[tuple[str, CategoryStats]], category_colors: dict[str, str]) -> None:
     """Render a text-based pie chart in the terminal."""
     # Include all categories (both income and expenses) in a single pie chart
     plot_data = []
     total_abs = 0.0
-    
+
     for cat, stats in sorted_categories:
         plot_data.append((cat, abs(stats.total)))
         total_abs += abs(stats.total)
@@ -95,9 +102,9 @@ def render_pie_chart(
     # Chars are taller than wide, so we compensate with width
     height = 10
     width = 20
-    
+
     # Pre-calculate slice boundaries in radians
-    slices = []
+    slices: list[SliceInfo] = []
     current_angle = 0.0
     for i, (cat, val) in enumerate(plot_data):
         slice_angle = (val / total_abs) * 2 * math.pi
@@ -107,21 +114,21 @@ def render_pie_chart(
     # Draw grid
     print("\nFINANCIAL DISTRIBUTION:")
     for y in range(height):
-        line = " " * 10 # indent
+        line = " " * 10  # indent
         for x in range(width):
             # Normalize to -1 to 1
             nx = (x / (width - 1)) * 2 - 1
             ny = (y / (height - 1)) * 2 - 1
-            
+
             # Distance from center
-            dist = nx*nx + ny*ny
+            dist = nx * nx + ny * ny
             if dist <= 1.0:
                 # Calculate angle
-                angle = math.atan2(ny, nx) # -pi to pi
+                angle = math.atan2(ny, nx)  # -pi to pi
                 if angle < 0:
                     angle += 2 * math.pi
-                
-                char_color = "\033[90m" # default gray
+
+                char_color = "\033[90m"  # default gray
                 for slice_info in slices:
                     if slice_info["start"] <= angle < slice_info["end"]:
                         char_color = slice_info["color"]

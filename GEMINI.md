@@ -14,6 +14,7 @@
 - **Static Single-Assignment (SSA)**: Prefer SSA form; do not reuse variables for different purposes (except when unavoidable, e.g., in loops).
 - **Maximum File Length**: No Python file can have more than 500 lines of code. If a file exceeds this limit, it must be split into smaller, modular files.
 - **Always Passing Tests**: All unit and integration tests must pass successfully after any change to the codebase.
+- **Always Passing Lint**: After each change, `make lint` must be successful.
 
 ## Project Goal & Context
 

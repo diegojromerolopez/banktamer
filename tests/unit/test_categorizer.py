@@ -1,10 +1,7 @@
 import unittest
-from unittest.mock import patch, mock_open, MagicMock
 from datetime import date
 from banktamer.models import Transaction
 from banktamer.categorizer import Categorizer
-import yaml
-from pathlib import Path
 
 
 class TestCategorizer(unittest.TestCase):

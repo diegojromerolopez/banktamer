@@ -1,11 +1,12 @@
 import pandas as pd
+from typing import Any
 from banktamer.models import Transaction
 
 
 class ExcelReader:
     """Read bank transactions from Excel files based on a provided schema."""
 
-    def __init__(self, schemas: dict[str, dict]) -> None:
+    def __init__(self, schemas: dict[str, dict[str, Any]]) -> None:
         """Initialize with a dictionary of bank schemas."""
         self.schemas = schemas
 
@@ -60,7 +61,7 @@ class ExcelReader:
                         break
                     except (ValueError, TypeError):
                         continue
-                
+
                 if txn_date is None:
                     continue
 

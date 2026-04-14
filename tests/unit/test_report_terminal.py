@@ -47,12 +47,12 @@ class TestReportTerminal(unittest.TestCase):
 
         with patch("builtins.print") as mock_print:
             print_report(report_data)
-            
+
             # Verify bar rendering
             # Salary is 100%, bar should be width 30
             # Food is 50%, bar should be width 15
             print_calls = [str(call) for call in mock_print.mock_calls]
-            
+
             # Check for colors
             # Salary is positive -> GREEN (\033[92m)
             # Food is negative -> RED (\033[91m)
@@ -76,7 +76,7 @@ class TestReportTerminal(unittest.TestCase):
         with patch("builtins.print") as mock_print:
             # Test with pie chart (now always shown)
             print_report(report_data)
-            
+
             # Check for grid characters (they would be in a line starting with indent)
             print_calls = [str(call) for call in mock_print.mock_calls]
             self.assertTrue(any("█" in s for s in print_calls))
@@ -135,6 +135,7 @@ class TestReportTerminal(unittest.TestCase):
     def test_render_pie_chart_direct_empty(self) -> None:
         # Direct test for coverage of total_abs == 0 early return
         from banktamer.report.terminal import render_pie_chart
+
         with patch("builtins.print") as mock_print:
             render_pie_chart([], {})
             mock_print.assert_not_called()

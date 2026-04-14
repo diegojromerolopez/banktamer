@@ -1,6 +1,6 @@
-.PHONY: install format lint test test-e2e run
+.PHONY: install format lint test test-integration test-e2e test-all run
 
-UV = /opt/homebrew/bin/uv
+UV = uv
 
 install:
 	$(UV) sync
@@ -9,14 +9,20 @@ format:
 	$(UV) run ruff format .
 
 lint:
-	$(UV) run ruff check banktamer
+	$(UV) run ruff check .
+	$(UV) run ruff format --check .
 	$(UV) run mypy banktamer tests
 
 test:
 	$(UV) run python -m unittest discover tests/unit
 
+test-integration:
+	$(UV) run python -m unittest discover tests/integration
+
 test-e2e:
 	$(UV) run python -m unittest tests/e2e/test_binary.py
+
+test-all: test test-integration test-e2e
 
 run:
 	$(UV) run banktamer $(args)
