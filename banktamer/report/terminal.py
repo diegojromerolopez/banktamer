@@ -1,25 +1,26 @@
 import math
-from banktamer.analytics import MonthReport
+from banktamer.analytics import MonthReport, CategoryStats
 
 
 def print_report(report_data: dict[str, MonthReport]) -> None:
+    """Print a rich terminal report including charts and summaries."""
     # Color constants
-    GREEN = "\033[92m"
-    RED = "\033[91m"
-    BLUE = "\033[94m"
-    YELLOW = "\033[93m"
-    MAGENTA = "\033[95m"
-    CYAN = "\033[96m"
-    WHITE = "\033[97m"
-    RESET = "\033[0m"
-    BOLD = "\033[1m"
+    green = "\033[92m"
+    red = "\033[91m"
+    blue = "\033[94m"
+    yellow = "\033[93m"
+    magenta = "\033[95m"
+    cyan = "\033[96m"
+    white = "\033[97m"
+    reset = "\033[0m"
+    bold = "\033[1m"
 
-    PALETTE_EXPENSES = [RED, BLUE, YELLOW, MAGENTA, CYAN, WHITE]
+    palette_expenses = [red, blue, yellow, magenta, cyan, white]
 
     for month, data in report_data.items():
-        print(f"\n{BLUE}{'=' * 50}{RESET}")
-        print(f" {BOLD}REPORT FOR {month}{RESET}")
-        print(f"{BLUE}{'=' * 50}{RESET}")
+        print(f"\n{blue}{'=' * 50}{reset}")
+        print(f" {bold}REPORT FOR {month}{reset}")
+        print(f"{blue}{'=' * 50}{reset}")
 
         # Filter categories with non-zero absolute total for sorting/charts
         categories_to_plot = {cat: stats for cat, stats in data["categories"].items() if abs(stats.total) > 0}
@@ -35,51 +36,50 @@ def print_report(report_data: dict[str, MonthReport]) -> None:
         expense_color_idx = 0
 
         for cat, stats in sorted_categories:
-            percentage = 0.0
             if stats.total > 0:
-                color = GREEN
-                if data["total_income"] > 0:
-                    percentage = (stats.total / data["total_income"]) * 100
+                color = green
+                total_for_percent = data["total_income"]
             else:
-                color = PALETTE_EXPENSES[expense_color_idx % len(PALETTE_EXPENSES)]
+                color = palette_expenses[expense_color_idx % len(palette_expenses)]
                 expense_color_idx += 1
-                if data["total_expenses"] < 0:
-                    percentage = (stats.total / data["total_expenses"]) * 100
+                total_for_percent = data["total_expenses"]
             
+            percentage = (stats.total / total_for_percent * 100) if total_for_percent != 0 else 0.0
             category_colors[cat] = color
 
             max_txn_str = ""
             if stats.max_txn:
                 max_txn_str = f"{stats.max_txn.amount:>10.2f} ({stats.max_txn.concept})"
 
-            line = f"{cat:<20} | {color}{stats.total:>10.2f}{RESET} | {percentage:>5.1f}% | {max_txn_str}"
+            line = f"{cat:<20} | {color}{stats.total:>10.2f}{reset} | {percentage:>5.1f}% | {max_txn_str}"
             print(line)
 
             if abs(percentage) > 0:
                 bar_width = 30
-                filled_width = int((percentage / 100) * bar_width)
+                filled_width = int((abs(percentage) / 100) * bar_width)
                 bar = "█" * filled_width
-                print(f"{' ': <23} {color}{bar}{RESET}")
+                print(f"{' ': <23} {color}{bar}{reset}")
 
         print("\nMONTHLY SUMMARY:")
-        print(f"Total Income:   {GREEN}{data['total_income']:>10.2f}{RESET}")
-        print(f"Total Expenses: {RED}{data['total_expenses']:>10.2f}{RESET}")
+        print(f"Total Income:   {green}{data['total_income']:>10.2f}{reset}")
+        print(f"Total Expenses: {red}{data['total_expenses']:>10.2f}{reset}")
         balance = data["total_income"] + data["total_expenses"]
-        balance_color = GREEN if balance >= 0 else RED
-        print(f"Net Balance:    {balance_color}{balance:>10.2f}{RESET}")
+        balance_color = green if balance >= 0 else red
+        print(f"Net Balance:    {balance_color}{balance:>10.2f}{reset}")
 
         if data["unknown_concepts"]:
-            print(f"\n{BOLD}UNKNOWN EXPENSE CONCEPTS:{RESET}")
+            print(f"\n{bold}UNKNOWN EXPENSE CONCEPTS:{reset}")
             for date_val, amount, concept in sorted(data["unknown_concepts"], key=lambda x: x[0]):
-                print(f"- {date_val} | {RED}{amount:>10.2f}{RESET} | {concept}")
+                print(f"- {date_val} | {red}{amount:>10.2f}{reset} | {concept}")
 
         if sorted_categories:
             render_pie_chart(sorted_categories, category_colors)
 
 
 def render_pie_chart(
-    sorted_categories: list[tuple[str, any]], category_colors: dict[str, str]
+    sorted_categories: list[tuple[str, CategoryStats]], category_colors: dict[str, str]
 ) -> None:
+    """Render a text-based pie chart in the terminal."""
     # Include all categories (both income and expenses) in a single pie chart
     plot_data = []
     total_abs = 0.0
@@ -92,8 +92,9 @@ def render_pie_chart(
         return
 
     # Dimensions
+    # Chars are taller than wide, so we compensate with width
     height = 10
-    width = 20 # chars are taller than wide
+    width = 20
     
     # Pre-calculate slice boundaries in radians
     slices = []

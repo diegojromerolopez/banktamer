@@ -2,8 +2,17 @@
 
 - **Total Test Coverage**: All Python code must have 100% unit test coverage.
 - **Unit Test Location**: All unit tests must be located in the `tests/unit` folder.
+- **Integration Test Location**: All integration tests must be located in the `tests/integration` folder.
+- **Happy Path Integration**: All happy paths must be covered by integration tests to ensure end-to-end functionality.
 - **No Relative Imports**: Only absolute imports are allowed (e.g., `from banktamer.models import ...` instead of `from .models import ...`).
 - **No `Any` Type Hint**: Do not use the `Any` type hint unless it is absolutely impossible to avoid. Use specific types or `TypedDict`/`dataclasses` for complex structures.
+- **SOLID Principles**: Follow the SOLID principles to ensure a maintainable and scalable codebase.
+- **Dependency Injection**: Use dependency injection to decouple components and improve testability.
+- **Immutability**: Favor immutability by returning new objects instead of modifying existing ones, especially for domain models.
+- **Docstrings**: All classes and public methods must have descriptive docstrings following PEP 257.
+- **Specific Exceptions**: Avoid broad `except Exception:` blocks. Catch specific exceptions and handle them appropriately.
+- **Static Single-Assignment (SSA)**: Prefer SSA form; do not reuse variables for different purposes (except when unavoidable, e.g., in loops).
+- **Maximum File Length**: No Python file can have more than 500 lines of code. If a file exceeds this limit, it must be split into smaller, modular files.
 
 ## Project Goal & Context
 
@@ -69,6 +78,13 @@ To maintain 100% coverage efficiently:
 - **Mocking IO**: Use `unittest.mock.patch("builtins.open")` and `mock_open` to simulate reading config files without relying on the disk.
 - **Mocking Data**: Use `pandas.DataFrame` in tests to simulate bank exports rather than providing real Excel files.
 - **CLI Isolation**: When testing `cli.py`, mock `argparse`, `ExcelReader`, and `Categorizer` to focus on the reporting logic.
+
+### 4. Integration Testing
+Integration tests ensure that all components work together correctly:
+- **No Mocking**: Do not mock internal application logic (Categorizer, ExcelReader, etc.). Only mock external services if absolutely necessary.
+- **File-Based**: Use real (or programmatically generated) XLS/XLSX files for testing.
+- **Output-First**: Assertions should primarily verify the correct terminal output or generated report files.
+- **Location**: Use `tests/integration/` for all end-to-end scenarios.
 
 ## Common Pitfalls
 - **Categorization Order**: If multiple regex patterns match a transaction, the first one defined in the YAML file wins.

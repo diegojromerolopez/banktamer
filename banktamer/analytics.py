@@ -7,11 +7,15 @@ from banktamer.models import Transaction
 
 @dataclass
 class CategoryStats:
+    """Aggregated statistics for a specific category."""
+
     total: float = 0.0
     max_txn: Transaction | None = None
 
 
 class MonthReport(TypedDict):
+    """Structure for a monthly financial report."""
+
     categories: dict[str, CategoryStats]
     total_income: float
     total_expenses: float
@@ -19,7 +23,10 @@ class MonthReport(TypedDict):
 
 
 class AnalyticsProcessor:
+    """Process a list of transactions into monthly reports."""
+
     def process(self, transactions: list[Transaction]) -> dict[str, MonthReport]:
+        """Aggregate transactions by month and category."""
         # Group by month (YYYY-MM)
         monthly_data: dict[str, MonthReport] = defaultdict(
             lambda: MonthReport(
