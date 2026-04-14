@@ -92,6 +92,23 @@ class TestCategorizer(unittest.TestCase):
             self.assertIn("Leisure", categorizer.rules)
 
     @patch("banktamer.categorizer.Path")
+    def test_fixed_regex_patterns(self, mock_path_cls: MagicMock) -> None:
+        mock_path_cls.side_effect = lambda p: self.create_path_mock(p)
+        # Verify that our fixes (using .* instead of *) work correctly
+        rules = {"Insurance": [".*Seguros"]}
+        yaml_content = yaml.dump(rules)
+
+        with patch("builtins.open", mock_open(read_data=yaml_content)):
+            categorizer = Categorizer("test_category")
+            txns = [
+                Transaction(date=date(2024, 1, 1), concept="COBRO SEGUROS VIDA", amount=-50.0),
+                Transaction(date=date(2024, 1, 1), concept="MAPFRE SEGUROS HOGAR", amount=-30.0),
+            ]
+            categorized = categorizer.categorize(txns)
+            self.assertEqual(categorized[0].category, "Insurance")
+            self.assertEqual(categorized[1].category, "Insurance")
+
+    @patch("banktamer.categorizer.Path")
     def test_empty_yaml(self, mock_path_cls: MagicMock) -> None:
         mock_path_cls.side_effect = lambda p: self.create_path_mock(p)
         with patch("builtins.open", mock_open(read_data="")):

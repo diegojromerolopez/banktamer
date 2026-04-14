@@ -17,7 +17,10 @@ The codebase is organized into a single package `banktamer` with specialized mod
 - `categorizer.py`: **Rule Engine**. Contains the logic to iterate over transactions and assign categories based on YAML-defined regex patterns from the `banktamer/config/categories` folder. Supports a base `.default.yaml` and optional merges with specific categories.
 - `analytics.py`: **Data Processor**. Transforms a flat list of categorized transactions into structured monthly reports, calculating totals and identifying category leaders (max transactions).
 - `models.py`: **Domain Entities**. Defines the core data structures used across the app (`Transaction`, `CategoryStats`).
-- `cli.py`: **User Interface**. Handles command-line arguments, orchestrates the pipeline, and manages the terminal-based report rendering.
+- `cli.py`: **User Interface**. Handles command-line arguments and orchestrates the financial pipeline.
+- `report/`: **Visualization Layer**. Contains logic for rendering reports.
+    - `terminal.py`: Handles rich terminal output with always-on bar and pie charts.
+    - `pdf.py`: Handles generation of professional PDF reports with charts and summaries.
 
 ## Architectural Overview
 

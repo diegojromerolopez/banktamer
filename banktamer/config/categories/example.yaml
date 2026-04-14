@@ -2,7 +2,7 @@ Utilities:
   - "Luz"
   - "Endesa"
   - "Iberdrola"
-  - "*Energia"
+  - ".*Energia"
   - "Netflix"
   - "HBO"
   - "Disney.*Plus"
@@ -14,7 +14,7 @@ Utilities:
   - "Canal.*Isabel.*II"
   - "Digi.*Spain"
   - "Caldera"
-  - "*Seguros"
+  - ".*Seguros"
 Leisure:
   - "Restaurant.*"
   - "Uber.*Eats"

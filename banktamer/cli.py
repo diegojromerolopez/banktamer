@@ -3,7 +3,8 @@ import os
 import sys
 from banktamer.io import ExcelReader
 from banktamer.categorizer import Categorizer
-from banktamer.analytics import AnalyticsProcessor, MonthReport
+from banktamer.analytics import AnalyticsProcessor
+from banktamer.report.terminal import print_report
 
 
 def main() -> None:
@@ -14,6 +15,8 @@ def main() -> None:
     parser.add_argument("--config-dir", help="Base directory for configurations (default: ./config)")
     parser.add_argument("--schemas", help="Path to schemas.json")
     parser.add_argument("--rules-dir", help="Path to categories rules directory")
+    parser.add_argument("--report", choices=["terminal", "pdf"], default="terminal", help="Report format (default: terminal)")
+    parser.add_argument("--output", help="Output path for PDF report (default: banktamer_report.pdf)")
 
     args = parser.parse_args()
 
@@ -62,47 +65,18 @@ def main() -> None:
         report_data = processor.process(categorized_txns)
 
         # 4. Report Generation
-        print_report(report_data)
+        if args.report == "pdf":
+            from banktamer.report.pdf import PDFReporter
+            output_path = args.output or "banktamer_report.pdf"
+            reporter = PDFReporter()
+            reporter.render(report_data, output_path)
+            print(f"Report generated successfully: {output_path}")
+        else:
+            print_report(report_data)
 
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
-
-
-def print_report(report_data: dict[str, MonthReport]) -> None:
-    for month, data in report_data.items():
-        print(f"\n{'=' * 50}")
-        print(f" REPORT FOR {month}")
-        print(f"{'=' * 50}")
-
-        print("\nCATEGORIZED BREAKDOWN:")
-        print(f"{'Category':<20} | {'Total':>10} | {'%':>6} | {'Max Transaction'}")
-        print("-" * 85)
-
-        # Sort categories by total absolute amount
-        sorted_categories = sorted(data["categories"].items(), key=lambda x: abs(x[1].total), reverse=True)
-
-        for cat, stats in sorted_categories:
-            percentage = 0.0
-            if stats.total > 0 and data["total_income"] > 0:
-                percentage = (stats.total / data["total_income"]) * 100
-            elif stats.total < 0 and data["total_expenses"] < 0:
-                percentage = (stats.total / data["total_expenses"]) * 100
-
-            max_txn_str = ""
-            if stats.max_txn:
-                max_txn_str = f"{stats.max_txn.amount:>10.2f} ({stats.max_txn.concept})"
-            print(f"{cat:<20} | {stats.total:>10.2f} | {percentage:>5.1f}% | {max_txn_str}")
-
-        print("\nMONTHLY SUMMARY:")
-        print(f"Total Income:   {data['total_income']:>10.2f}")
-        print(f"Total Expenses: {data['total_expenses']:>10.2f}")
-        print(f"Net Balance:    {data['total_income'] + data['total_expenses']:>10.2f}")
-
-        if data["unknown_concepts"]:
-            print("\nUNKNOWN EXPENSE CONCEPTS:")
-            for date, amount, concept in sorted(data["unknown_concepts"], key=lambda x: x[0]):
-                print(f"- {date} | {amount:>10.2f} | {concept}")
 
 
 if __name__ == "__main__":

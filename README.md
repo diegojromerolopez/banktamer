@@ -11,7 +11,8 @@
 - **Standardized Ingestion**: Support for multiple bank formats via JSON schemas.
 - **Regex Categorization**: Fully customizable category rules using YAML.
 - **Monthly Analytics**: Automatic grouping by month with totals for income, expenses, and net balance.
-- **Automated Reporting**: Detailed breakdown by category, highlighting the largest transactions and unclassified "Unknown" expenses.
+- **Visual Insights**: Automatic generation of colorful terminal bar charts and financial distribution pie charts.
+- **Modern Reporting**: Export options to professional PDF documents for easy sharing and record keeping.
 - **Modern Tooling**: Managed with `uv` for high performance and strict type safety.
 - **CI/CD Ready**: GitHub Actions pipeline for automated formatting, linting, and 100% test coverage verification.
 
@@ -74,6 +75,9 @@ banktamer --bank santander --category common --files extract_jan.xlsx extract_fe
 
 # Example: Using custom config directory
 banktamer --bank santander --config-dir /path/to/my/config --files data.xlsx
+
+# Example: Generating a professional PDF report
+banktamer --bank santander --category common --files data.xlsx --report pdf --output report_2024.pdf
 ```
 
 #### Running directly with `uv`
@@ -112,10 +116,13 @@ banktamer/
 ├── banktamer/           # Core source code
 │   ├── analytics.py     # Aggregation logic
 │   ├── categorizer.py   # Regex engine
-│   ├── cli.py           # Entry point & Reporting
+│   ├── cli.py           # Entry point & CLI logic
 │   ├── config/          # Bundled JSON schemas & YAML rules (DEFAULTS)
 │   ├── io.py            # Excel ingestion
-│   └── models.py        # Data structures
+│   ├── models.py        # Data structures
+│   └── report/          # Reporting engine
+│       ├── terminal.py  # Terminal visualization (always on)
+│       └── pdf.py       # Professional PDF generation
 ├── tests/
 │   └── unit/            # Unit tests (100% coverage mandatory)
 ├── GEMINI.md            # Critical AI/Developer coding rules

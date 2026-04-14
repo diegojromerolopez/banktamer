@@ -1,8 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from datetime import date
-from banktamer.cli import main, print_report
-from banktamer.analytics import CategoryStats, MonthReport
+from banktamer.cli import main
+from banktamer.analytics import CategoryStats
 
 
 class TestCli(unittest.TestCase):
@@ -10,10 +9,12 @@ class TestCli(unittest.TestCase):
     @patch("banktamer.cli.Categorizer")
     @patch("banktamer.cli.AnalyticsProcessor")
     @patch("argparse.ArgumentParser.parse_args")
+    @patch("banktamer.cli.print_report")
     @patch("builtins.print")
     def test_main_success(
         self,
         mock_print: MagicMock,
+        mock_print_report: MagicMock,
         mock_args: MagicMock,
         mock_processor: MagicMock,
         mock_categorizer: MagicMock,
@@ -26,30 +27,76 @@ class TestCli(unittest.TestCase):
             config_dir=None,
             schemas=None,
             rules_dir=None,
+            report="terminal",
+            output=None,
         )
 
         # Mock Reader to return some transactions
         mock_reader.return_value.read.return_value = [MagicMock()]
 
         # Mock Processor to return dummy report data
-        mock_processor.return_value.process.return_value = {
-            "2024-01": {"total_income": 1000.0, "total_expenses": -500.0, "categories": {}, "unknown_concepts": []}
+        report_data = {
+            "2024-01": {
+                "total_income": 1000.0,
+                "total_expenses": -500.0,
+                "categories": {"Food": CategoryStats(total=-500.0, max_txn=None)},
+                "unknown_concepts": [],
+            }
         }
+        mock_processor.return_value.process.return_value = report_data
 
         main()
 
-        mock_print.assert_any_call("\n==================================================")
-        mock_print.assert_any_call(" REPORT FOR 2024-01")
+        # Verify print_report was called with the processed data
+        mock_print_report.assert_called_once_with(report_data)
+
+    @patch("banktamer.cli.ExcelReader")
+    @patch("banktamer.cli.Categorizer")
+    @patch("banktamer.cli.AnalyticsProcessor")
+    @patch("argparse.ArgumentParser.parse_args")
+    @patch("banktamer.report.pdf.PDFReporter")
+    @patch("builtins.print")
+    def test_main_pdf_report(
+        self,
+        mock_print: MagicMock,
+        mock_pdf_reporter: MagicMock,
+        mock_args: MagicMock,
+        mock_processor: MagicMock,
+        mock_categorizer: MagicMock,
+        mock_reader: MagicMock,
+    ) -> None:
+        mock_args.return_value = MagicMock(
+            bank="santander",
+            category="common",
+            files=["test.xlsx"],
+            config_dir=None,
+            schemas=None,
+            rules_dir=None,
+            report="pdf",
+            output="custom_report.pdf"
+        )
+
+        mock_reader.return_value.read.return_value = [MagicMock()]
+        report_data = {"2024-01": {"total_income": 100.0, "total_expenses": -50.0, "categories": {}, "unknown_concepts": []}}
+        mock_processor.return_value.process.return_value = report_data
+
+        main()
+
+        # Verify PDFReporter was instantiated and render was called
+        mock_pdf_reporter.return_value.render.assert_called_once_with(report_data, "custom_report.pdf")
+        mock_print.assert_any_call("Report generated successfully: custom_report.pdf")
 
     @patch("banktamer.cli.ExcelReader")
     @patch("banktamer.cli.Categorizer")
     @patch("banktamer.cli.AnalyticsProcessor")
     @patch("argparse.ArgumentParser.parse_args")
     @patch("os.path.exists")
+    @patch("banktamer.cli.print_report")
     @patch("builtins.print")
     def test_main_no_category_arg(
         self,
         mock_print: MagicMock,
+        mock_print_report: MagicMock,
         mock_exists: MagicMock,
         mock_args: MagicMock,
         mock_processor: MagicMock,
@@ -64,19 +111,22 @@ class TestCli(unittest.TestCase):
             config_dir=None,
             schemas=None,
             rules_dir=None,
+            report="terminal",
+            output=None,
         )
 
         mock_exists.return_value = True  # Mock local config exists
         mock_reader.return_value.read.return_value = [MagicMock()]
-        mock_processor.return_value.process.return_value = {
+        report_data = {
             "2024-01": {"total_income": 1000.0, "total_expenses": -500.0, "categories": {}, "unknown_concepts": []}
         }
+        mock_processor.return_value.process.return_value = report_data
 
         main()
 
         # Verify Categorizer was called with category=None and default rules_dir
         mock_categorizer.assert_called_with(None, rules_dir="config/categories")
-        mock_print.assert_any_call(" REPORT FOR 2024-01")
+        mock_print_report.assert_called_once_with(report_data)
 
     @patch("banktamer.cli.ExcelReader")
     @patch("argparse.ArgumentParser.parse_args")
@@ -89,6 +139,8 @@ class TestCli(unittest.TestCase):
             config_dir=None,
             schemas=None,
             rules_dir=None,
+            report="terminal",
+            output=None,
         )
         mock_reader.return_value.read.return_value = []
 
@@ -110,6 +162,8 @@ class TestCli(unittest.TestCase):
             config_dir=None,
             schemas=None,
             rules_dir=None,
+            report="terminal",
+            output=None,
         )
         mock_reader.return_value.read.side_effect = Exception("Some error")
 
@@ -117,31 +171,47 @@ class TestCli(unittest.TestCase):
 
         mock_exit.assert_called_with(1)
 
-    def test_print_report_calculations(self) -> None:
-        # Create dummy report data to test percentage branches
-        report_data: dict[str, MonthReport] = {
+    @patch("banktamer.cli.ExcelReader")
+    @patch("banktamer.cli.Categorizer")
+    @patch("banktamer.cli.AnalyticsProcessor")
+    @patch("argparse.ArgumentParser.parse_args")
+    @patch("os.path.exists")
+    @patch("banktamer.cli.print_report")
+    def test_main_with_data(
+        self,
+        mock_print_report: MagicMock,
+        mock_exists: MagicMock,
+        mock_args: MagicMock,
+        mock_processor: MagicMock,
+        mock_categorizer: MagicMock,
+        mock_reader: MagicMock,
+    ) -> None:
+        mock_args.return_value = MagicMock(
+            bank="santander",
+            category=None,
+            files=["test.xlsx"],
+            config_dir=None,
+            schemas=None,
+            rules_dir=None,
+            report="terminal",
+            output=None,
+        )
+        mock_exists.return_value = True
+        mock_reader.return_value.read.return_value = [MagicMock()]
+        report_data = {
             "2024-01": {
-                "total_income": 1000.0,
-                "total_expenses": -500.0,
-                "categories": {
-                    "Salary": CategoryStats(total=1000.0, max_txn=MagicMock(amount=1000.0, concept="Work")),
-                    "Food": CategoryStats(total=-200.0, max_txn=MagicMock(amount=-50.0, concept="Restaurant")),
-                    "Zero": CategoryStats(total=0.0, max_txn=None),
-                },
-                "unknown_concepts": [(date(2024, 1, 1), -50.0, "Unknown Item")],
+                "total_income": 100.0, 
+                "total_expenses": -50.0, 
+                "categories": {"Food": CategoryStats(total=-50.0, max_txn=None)}, 
+                "unknown_concepts": []
             }
         }
+        mock_processor.return_value.process.return_value = report_data
 
-        with patch("builtins.print") as mock_print_call:
-            print_report(report_data)
-
-            # Check if percentages were printed (roughly)
-            # Salary should be 100% of income
-            # Food should be 40% of expenses (-200 / -500)
-            print_calls = [str(call) for call in mock_print_call.mock_calls]
-            self.assertTrue(any("100.0%" in s for s in print_calls))
-            self.assertTrue(any("40.0%" in s for s in print_calls))
-            self.assertTrue(any("Unknown Item" in s for s in print_calls))
+        main()
+        
+        # Verify print_report was called
+        mock_print_report.assert_called_once_with(report_data)
 
 
     @patch("banktamer.cli.ExcelReader")
@@ -158,7 +228,7 @@ class TestCli(unittest.TestCase):
         mock_reader: MagicMock,
     ) -> None:
         mock_args.return_value = MagicMock(
-            bank="santander", category=None, files=["test.xlsx"], config_dir=None, schemas=None, rules_dir=None
+            bank="santander", category=None, files=["test.xlsx"], config_dir=None, schemas=None, rules_dir=None, report="terminal", output=None
         )
         # 1. Local schemas.json does not exist
         # 2. Home schemas.json DOES exist
@@ -187,7 +257,7 @@ class TestCli(unittest.TestCase):
         mock_reader: MagicMock,
     ) -> None:
         mock_args.return_value = MagicMock(
-            bank="santander", category=None, files=["test.xlsx"], config_dir=None, schemas=None, rules_dir=None
+            bank="santander", category=None, files=["test.xlsx"], config_dir=None, schemas=None, rules_dir=None, report="terminal", output=None
         )
         # 1. Local schemas.json does not exist
         # 2. Home schemas.json does not exist
@@ -224,6 +294,8 @@ class TestCli(unittest.TestCase):
             config_dir=None,
             schemas=None,
             rules_dir=None,
+            report="terminal",
+            output=None,
         )
 
         # Mock Reader to return different transactions for different files
