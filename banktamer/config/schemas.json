@@ -1,16 +1,250 @@
 {
-  "santander": {
+  "santander-es": {
     "date_col": "FECHA OPERACIÓN",
     "concept_col": "CONCEPTO",
     "amount_col": "IMPORTE EUR",
     "date_format": "%d/%m/%Y",
     "skiprows": 7
   },
+  "santander-uk": {
+    "date_col": "Date",
+    "concept_col": "Description",
+    "amount_col": "Amount",
+    "date_format": "%d/%m/%Y",
+    "skiprows": 0
+  },
   "caja-rural": {
     "date_col": "Fecha",
     "concept_col": "Descripción",
     "income_col": "Abonos",
     "expense_col": "Cargos",
+    "date_format": "%Y-%m-%d",
+    "skiprows": 0
+  },
+  "chase": {
+    "date_col": "Date",
+    "concept_col": "Description",
+    "amount_col": "Amount",
+    "date_format": "%m/%d/%Y",
+    "skiprows": 0
+  },
+  "wells-fargo": {
+    "date_col": "Date",
+    "concept_col": "Description",
+    "amount_col": "Amount",
+    "date_format": "%m/%d/%Y",
+    "skiprows": 0
+  },
+  "revolut": {
+    "date_col": ["Started Date", "Date"],
+    "concept_col": "Description",
+    "amount_col": "Amount",
+    "date_format": ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d"],
+    "skiprows": 0
+  },
+  "monzo": {
+    "date_col": "Date",
+    "concept_col": "Description",
+    "amount_col": "Amount",
+    "date_format": "%d/%m/%Y",
+    "skiprows": 0
+  },
+  "n26": {
+    "date_col": "Date",
+    "concept_col": ["Payee", "Description"],
+    "amount_col": ["Amount (EUR)", "Amount"],
+    "date_format": "%Y-%m-%d",
+    "skiprows": 0
+  },
+  "wise": {
+    "date_col": "Date",
+    "concept_col": "Description",
+    "amount_col": "Amount",
+    "date_format": "%Y-%m-%d",
+    "skiprows": 0
+  },
+  "bbva-es": {
+    "date_col": "Fecha",
+    "concept_col": "Concepto",
+    "amount_col": "Importe",
+    "date_format": "%d/%m/%Y",
+    "skiprows": 3
+  },
+  "bbva-mx": {
+    "date_col": "Fecha de operación",
+    "concept_col": "Concepto / Descripción",
+    "income_col": "Abonos",
+    "expense_col": "Cargos",
+    "date_format": "%d/%m/%Y",
+    "skiprows": 0
+  },
+  "caixabank": {
+    "date_col": "Fecha",
+    "concept_col": "Concepto",
+    "amount_col": "Importe",
+    "date_format": "%d/%m/%Y",
+    "skiprows": 0
+  },
+  "ing": {
+    "date_col": ["Datum", "F. VALOR", "Date"],
+    "concept_col": ["Naam / Omschrijving", "DESCRIPCIÓN", "Description"],
+    "amount_col": ["Bedrag (EUR)", "IMPORTE (€)", "Amount"],
+    "date_format": ["%d-%m-%Y", "%d/%m/%Y"],
+    "skiprows": 0
+  },
+  "deutsche-bank": {
+    "date_col": ["Buchungstag", "Fecha", "Date"],
+    "concept_col": ["Begünstigter / Auftraggeber", "Concepto", "Description"],
+    "amount_col": ["Betrag", "Importe", "Amount"],
+    "date_format": ["%d.%m.%Y", "%d/%m/%Y"],
+    "skiprows": 0
+  },
+  "bnp-paribas": {
+    "date_col": "Date",
+    "concept_col": "Libellé",
+    "amount_col": "Montant",
+    "date_format": "%d/%m/%Y",
+    "skiprows": 0
+  },
+  "societe-generale": {
+    "date_col": "Date",
+    "concept_col": "Libellé",
+    "amount_col": "Montant",
+    "date_format": "%d/%m/%Y",
+    "skiprows": 0
+  },
+  "barclays": {
+    "date_col": "Date",
+    "concept_col": "Description",
+    "amount_col": "Amount",
+    "date_format": "%d/%m/%Y",
+    "skiprows": 0
+  },
+  "nubank": {
+    "date_col": "Data",
+    "concept_col": "Descrição",
+    "amount_col": "Valor",
+    "date_format": "%d/%m/%Y",
+    "skiprows": 0
+  },
+  "bank-of-america": {
+    "date_col": "Date",
+    "concept_col": "Description",
+    "amount_col": "Amount",
+    "date_format": "%m/%d/%Y",
+    "skiprows": 0
+  },
+  "citibank": {
+    "date_col": "Date",
+    "concept_col": "Description",
+    "amount_col": "Amount",
+    "date_format": "%m/%d/%Y",
+    "skiprows": 0
+  },
+  "paypal": {
+    "date_col": "Date",
+    "concept_col": "Name",
+    "amount_col": "Net",
+    "date_format": "%d/%m/%Y",
+    "skiprows": 0
+  },
+  "capital-one": {
+    "date_col": "Transaction Date",
+    "concept_col": "Description",
+    "amount_col": "Amount",
+    "date_format": "%Y-%m-%d",
+    "skiprows": 0
+  },
+  "lloyds": {
+    "date_col": "Date",
+    "concept_col": "Description",
+    "income_col": ["Credit", "Money In"],
+    "expense_col": ["Debit", "Money Out"],
+    "date_format": "%d/%m/%Y",
+    "skiprows": 0
+  },
+  "nordea": {
+    "date_col": "Transaction date",
+    "concept_col": ["Text", "Description"],
+    "amount_col": "Amount",
+    "date_format": "%Y-%m-%d",
+    "skiprows": 0
+  },
+  "intesa-sanpaolo": {
+    "date_col": "Data",
+    "concept_col": "Descrizione",
+    "amount_col": "Importo",
+    "date_format": "%d/%m/%Y",
+    "skiprows": 0
+  },
+  "credit-agricole": {
+    "date_col": "Date opération",
+    "concept_col": "Libellé",
+    "amount_col": "Montant",
+    "date_format": "%d/%m/%Y",
+    "skiprows": 0
+  },
+  "poste-italiane": {
+    "date_col": "Data contabile",
+    "concept_col": "Descrizione",
+    "amount_col": "Importo",
+    "date_format": "%d/%m/%Y",
+    "skiprows": 0
+  },
+  "rabobank": {
+    "date_col": "Datum",
+    "concept_col": "Naam / Omschrijving",
+    "amount_col": "Bedrag",
+    "date_format": "%Y-%m-%d",
+    "skiprows": 0
+  },
+  "abn-amro": {
+    "date_col": "transactiondate",
+    "concept_col": "description",
+    "amount_col": "amount",
+    "date_format": "%Y%m%d",
+    "skiprows": 0
+  },
+  "commerzbank": {
+    "date_col": "Buchungstag",
+    "concept_col": "Buchungstext",
+    "amount_col": "Betrag",
+    "date_format": "%d.%m.%Y",
+    "skiprows": 0
+  },
+  "ubs": {
+    "date_col": "Value date",
+    "concept_col": "Description",
+    "amount_col": "Amount",
+    "date_format": "%Y-%m-%d",
+    "skiprows": 0
+  },
+  "boursorama": {
+    "date_col": "date",
+    "concept_col": "label",
+    "amount_col": "amount",
+    "date_format": "%Y-%m-%d",
+    "skiprows": 0
+  },
+  "icici": {
+    "date_col": "Date",
+    "concept_col": "Narration",
+    "income_col": "Deposit",
+    "expense_col": "Withdrawal",
+    "date_format": "%d/%m/%Y",
+    "skiprows": 0
+  },
+  "bankinter": {
+    "date_col": "Fecha",
+    "concept_col": "Concepto",
+    "amount_col": "Importe",
+    "date_format": "%d/%m/%Y",
+    "skiprows": 0
+  },
+  "nn": {
+    "date_col": "Datum",
+    "concept_col": "Omschrijving",
+    "amount_col": "Bedrag",
     "date_format": "%Y-%m-%d",
     "skiprows": 0
   }

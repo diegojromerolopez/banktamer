@@ -13,6 +13,7 @@
 - **Specific Exceptions**: Avoid broad `except Exception:` blocks. Catch specific exceptions and handle them appropriately.
 - **Static Single-Assignment (SSA)**: Prefer SSA form; do not reuse variables for different purposes (except when unavoidable, e.g., in loops).
 - **Maximum File Length**: No Python file can have more than 500 lines of code. If a file exceeds this limit, it must be split into smaller, modular files.
+- **Always Passing Tests**: All unit and integration tests must pass successfully after any change to the codebase.
 
 ## Project Goal & Context
 
@@ -67,6 +68,7 @@ A GitHub Actions pipeline is configured in `.github/workflows/ci.yml` to automat
 To support a new bank, two configuration updates are required:
 - **Schema**: Add an entry to `banktamer/config/schemas.json`. You must specify either `amount_col` (unified) or both `income_col` and `expense_col` (split).
 - **Rules**: Categories are decoupled from banks. You can use an existing category file or create a new one in `banktamer/config/categories/<category>.yaml`. Use `.default.yaml` for rules that should always be active regardless of the selected category.
+- **Verification**: Every new bank schema MUST be verified by an integration test (e.g., in `tests/integration/test_bank_schemas.py`) to ensure the parsing logic works with its specific column names and date formats.
 
 ### 2. Type Safety
 - Use `TypedDict` for complex dictionary structures (see `MonthReport` in `analytics.py`).
@@ -84,6 +86,7 @@ Integration tests ensure that all components work together correctly:
 - **No Mocking**: Do not mock internal application logic (Categorizer, ExcelReader, etc.). Only mock external services if absolutely necessary.
 - **File-Based**: Use real (or programmatically generated) XLS/XLSX files for testing.
 - **Output-First**: Assertions should primarily verify the correct terminal output or generated report files.
+- **Schema Coverage**: Every bank defined in `banktamer/config/schemas.json` MUST be covered by an integration test. The test suite should dynamically iterate through all schemas to ensure broad coverage.
 - **Location**: Use `tests/integration/` for all end-to-end scenarios.
 
 ## Common Pitfalls
