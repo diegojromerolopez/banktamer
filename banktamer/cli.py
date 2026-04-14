@@ -34,7 +34,14 @@ def resolve_config(args: argparse.Namespace) -> ConfigPaths:
             return ConfigPaths(schemas=home_schemas, rules_dir=os.path.join(home_config, "categories"))
 
         # 2. Try package internal config
-        package_config = os.path.join(os.path.dirname(__file__), "config")
+        if (getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS")) or "__compiled__" in globals():
+            # Frozen path (PyInstaller or Nuitka)
+            base_dir = getattr(sys, "_MEIPASS", os.path.dirname(__file__))
+            package_config = os.path.join(base_dir, "banktamer", "config")
+        else:
+            # Normal source path
+            package_config = os.path.join(os.path.dirname(__file__), "config")
+
         package_schemas = os.path.join(package_config, "schemas.json")
         if os.path.exists(package_schemas):
             return ConfigPaths(schemas=package_schemas, rules_dir=os.path.join(package_config, "categories"))

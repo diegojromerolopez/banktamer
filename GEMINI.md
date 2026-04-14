@@ -98,3 +98,12 @@ Integration tests ensure that all components work together correctly:
 - `make test`: Runs all tests and verifies coverage.
 - `make lint`: Runs `ruff` and `mypy` (strict mode) on both source and tests.
 - `make format`: Automatically fixes formatting issues via `ruff`.
+- `make dist-exe`: Builds a standalone executable using Nuitka.
+
+## Distribution & Releases
+
+### Standalone Executables
+To provide a friction-less experience, `banktamer` is distributed as a standalone executable for Linux, macOS, and Windows. This bundles the Python interpreter and all dependencies into a single file by compiling the Python code to C++.
+
+- **Local Build**: Run `make dist-exe`. The resulting binary will be in the `dist/` directory. This requires a C++ compiler (like clang, gcc, or msvc) to be installed on your system.
+- **Automated Releases**: The project uses GitHub Actions to automatically build and attach these executables to GitHub Releases whenever a new version tag (e.g., `v0.1.0`) pushed to the repository.
