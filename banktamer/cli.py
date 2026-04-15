@@ -8,7 +8,8 @@ from banktamer.analytics import AnalyticsProcessor, MonthReport
 from banktamer.categorizer import Categorizer
 from banktamer.io import ExcelReader
 from banktamer.models import Transaction
-from banktamer.report.terminal import print_report
+from banktamer.report.terminal import print_ai_analysis, print_report
+from banktamer.ai import AIProviderFactory
 
 
 class ConfigPaths(TypedDict):
@@ -16,6 +17,7 @@ class ConfigPaths(TypedDict):
 
     schemas: str
     rules_dir: str
+    config_dir: str
 
 
 def resolve_config(args: argparse.Namespace) -> ConfigPaths:
@@ -31,7 +33,9 @@ def resolve_config(args: argparse.Namespace) -> ConfigPaths:
         home_schemas = os.path.join(home_config, "schemas.json")
 
         if os.path.exists(home_schemas):
-            return ConfigPaths(schemas=home_schemas, rules_dir=os.path.join(home_config, "categories"))
+            return ConfigPaths(
+                schemas=home_schemas, rules_dir=os.path.join(home_config, "categories"), config_dir=home_config
+            )
 
         # 2. Try package internal config
         if (getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS")) or "__compiled__" in globals():
@@ -44,40 +48,43 @@ def resolve_config(args: argparse.Namespace) -> ConfigPaths:
 
         package_schemas = os.path.join(package_config, "schemas.json")
         if os.path.exists(package_schemas):
-            return ConfigPaths(schemas=package_schemas, rules_dir=os.path.join(package_config, "categories"))
+            return ConfigPaths(
+                schemas=package_schemas, rules_dir=os.path.join(package_config, "categories"), config_dir=package_config
+            )
 
-    return ConfigPaths(schemas=schemas_path, rules_dir=rules_dir)
+    return ConfigPaths(schemas=schemas_path, rules_dir=rules_dir, config_dir=config_dir)
 
 
 def load_rules(rules_dir: str, category: str | None) -> dict[str, list[str]]:
-    """Load and merge rules from .default.yaml and the specified category file."""
+    """Load categorization rules from YAML files."""
     merged_rules: dict[str, list[str]] = {}
-    base_dir = os.path.abspath(rules_dir)
 
-    # 1. Load .default if present
-    default_path = os.path.join(base_dir, ".default.yaml")
-    if os.path.exists(default_path):
-        with open(default_path, "r") as default_file:
-            import yaml  # Import here to avoid global dependency if not needed
+    # 1. Load default rules if they exist
+    default_rules_path = os.path.join(rules_dir, ".default.yaml")
+    if os.path.exists(default_rules_path):
+        import yaml
 
-            default_rules = yaml.safe_load(default_file)
-            if default_rules:
-                merged_rules.update(default_rules)
+        with open(default_rules_path, "r") as f:
+            rules = yaml.safe_load(f)
+            if rules:
+                merged_rules.update(rules)
 
-    # 2. Load specified category if present and not .default
-    if category and category != ".default":
-        spec_path = os.path.join(base_dir, f"{category}.yaml")
-        if os.path.exists(spec_path):
-            with open(spec_path, "r") as spec_file:
-                import yaml
+    # 2. Load category-specific rules
+    if category:
+        category_path = os.path.join(rules_dir, f"{category}.yaml")
+        if not os.path.exists(category_path):
+            raise FileNotFoundError(f"Category file not found: {category_path}")
 
-                spec_rules = yaml.safe_load(spec_file)
-                if spec_rules:
-                    for cat, patterns in spec_rules.items():
-                        if cat in merged_rules:
-                            merged_rules[cat].extend(patterns)
-                        else:
-                            merged_rules[cat] = patterns
+        import yaml
+
+        with open(category_path, "r") as f:
+            rules = yaml.safe_load(f)
+            if rules:
+                for cat, patterns in rules.items():
+                    if cat in merged_rules:
+                        merged_rules[cat].extend(patterns)
+                    else:
+                        merged_rules[cat] = patterns
     return merged_rules
 
 
@@ -107,7 +114,7 @@ def run_pipeline(args: argparse.Namespace, config: ConfigPaths) -> dict[str, Mon
     return processor.process(categorized_txns)
 
 
-def generate_report(args: argparse.Namespace, report_data: dict[str, MonthReport]) -> None:
+def generate_report(args: argparse.Namespace, report_data: dict[str, MonthReport], config: ConfigPaths) -> None:
     """Generate the requested report type."""
     if not report_data:
         return
@@ -121,6 +128,62 @@ def generate_report(args: argparse.Namespace, report_data: dict[str, MonthReport
         print(f"Report generated successfully: {output_path}")
     else:
         print_report(report_data)
+
+    # 4. AI Analysis (Optional)
+    if args.ai:
+        api_key = args.ai_key or os.getenv(f"{args.ai.upper()}_API_KEY")
+        if not api_key and args.ai != "ollama":
+            print(f"Error: AI provider '{args.ai}' requires an API key (--ai-key or {args.ai.upper()}_API_KEY env).")
+            return
+
+        try:
+            provider = AIProviderFactory.create(
+                provider_name=args.ai, api_key=api_key, model=args.ai_model, base_url=args.ai_url
+            )
+
+            print(f"\n--- AI Financial Analysis ({args.ai}) ---")
+
+            # Create a more detailed summary for the AI
+            summary_parts = []
+            for month, data in report_data.items():
+                cat_summary = ", ".join([f"{cat}: {stats.total:.2f}" for cat, stats in data["categories"].items()])
+                summary_parts.append(
+                    f"Month: {month}\n"
+                    f"Income: {data['total_income']:.2f}\n"
+                    f"Expenses: {data['total_expenses']:.2f}\n"
+                    f"Categories: {cat_summary}"
+                )
+            summary = "\n\n".join(summary_parts)
+
+            # Load custom prompt from ai_settings.yaml if it exists
+            prompt = (
+                "You are an expert financial advisor. Analyze these bank transactions and provide:\n"
+                "1. A brief summary of spending patterns.\n"
+                "2. Specific, actionable money-saving suggestions.\n"
+                "3. Any alarming trends or unusual category spikes.\n\n"
+                f"Data:\n{summary}"
+            )
+
+            settings_path = os.path.join(config["config_dir"], "ai_settings.yaml")
+            if os.path.exists(settings_path):
+                import yaml
+
+                try:
+                    with open(settings_path, "r") as f:
+                        settings = yaml.safe_load(f.read())
+                        template = settings.get("prompt_templates", {}).get("financial_analysis")
+                        if template:
+                            if "{summary}" in template:
+                                prompt = template.replace("{summary}", summary)
+                            else:
+                                prompt = f"{template}\n\nData:\n{summary}"
+                except Exception:
+                    pass
+
+            response = provider.ask(prompt)
+            print_ai_analysis(args.ai, response)
+        except Exception as e:
+            print(f"AI Analysis failed: {e}")
 
 
 def main() -> None:
@@ -136,13 +199,19 @@ def main() -> None:
         "--report", choices=["terminal", "pdf"], default="terminal", help="Report format (default: terminal)"
     )
     parser.add_argument("--output", help="Output path for PDF report (default: banktamer_report.pdf)")
+    parser.add_argument(
+        "--ai", choices=["openai", "anthropic", "gemini", "huggingface", "ollama"], help="AI provider for analysis"
+    )
+    parser.add_argument("--ai-key", help="API key for the AI provider (fallbacks to environment variable)")
+    parser.add_argument("--ai-url", help="Base URL for the AI provider (e.g. for remote Ollama)")
+    parser.add_argument("--ai-model", help="Override default model for the AI provider")
 
     args = parser.parse_args()
     config = resolve_config(args)
 
     try:
         report_data = run_pipeline(args, config)
-        generate_report(args, report_data)
+        generate_report(args, report_data, config)
     except (ValueError, FileNotFoundError, json.JSONDecodeError) as e:
         print(f"Configuration or Data Error: {e}", file=sys.stderr)
         sys.exit(1)

@@ -1,0 +1,30 @@
+# BankTamer AI Integration Settings
+# This file configures how BankTamer interacts with AI Chat interfaces.
+
+# Integration Mode:
+# - automation: Uses browser automation (Playwright/Selenium) to drive the web UI.
+# - clipboard: Formats the report and copies it to the clipboard, then opens the browser.
+# - action_server: Starts a local API for a Custom GPT to query.
+integration_mode: "clipboard" 
+
+browser:
+  headless: false
+  provider: "playwright" 
+  profile_path: "~/.banktamer/browser_profile"
+
+custom_gpt:
+  enabled: false
+  action_url: "http://localhost:8000"
+  oauth_enabled: true
+  client_id: "" # Optional: Set via BT_OAUTH_CLIENT_ID environment variable
+
+prompt_templates:
+  financial_analysis: |
+    I am providing my bank transactions for the month of {month}. 
+    Please analysis the following data and provide:
+    1. A summary of spending habits.
+    2. Any anomalies or unusual expenses.
+    3. Suggestions for savings.
+    
+    Data:
+    {data_table}

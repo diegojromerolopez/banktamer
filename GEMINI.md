@@ -15,6 +15,8 @@
 - **Maximum File Length**: No Python file can have more than 500 lines of code. If a file exceeds this limit, it must be split into smaller, modular files.
 - **Always Passing Tests**: All unit and integration tests must pass successfully after any change to the codebase.
 - **Always Passing Lint**: After each change, `make lint` must be successful.
+- **No Conditions in Tests**: Do not add branching logic (if/else, try/except) in tests; each test should correspond to a single, clear scenario.
+- **Explicit Mock Assertions**: Use `self.assertEqual` on `call_args_list` to verify the exact sequence and parameters for every mock used. Avoid generic `assert_called()` or `call_args` without parameter verification. Each mock used must have its calls fully accounted for in the assertions.
 
 ## Project Goal & Context
 

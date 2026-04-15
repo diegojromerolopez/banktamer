@@ -137,3 +137,16 @@ def render_pie_chart(sorted_categories: list[tuple[str, CategoryStats]], categor
             else:
                 line += " "
         print(line)
+
+
+def print_ai_analysis(provider_name: str, content: str) -> None:
+    """Print the AI analysis with a header and styling."""
+    blue = "\033[94m"
+    bold = "\033[1m"
+    reset = "\033[0m"
+
+    print(f"\n{blue}{'=' * 50}{reset}")
+    print(f" {bold}AI FINANCIAL ANALYSIS ({provider_name.upper()}){reset}")
+    print(f"{blue}{'=' * 50}{reset}")
+    print(content)
+    print(f"{blue}{'=' * 50}{reset}")

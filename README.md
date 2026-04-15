@@ -13,6 +13,7 @@
 - **Monthly Analytics**: Automatic grouping by month with totals for income, expenses, and net balance.
 - **Visual Insights**: Automatic generation of colorful terminal bar charts and financial distribution pie charts.
 - **Modern Reporting**: Export options to professional PDF documents for easy sharing and record keeping.
+- **AI-Powered Insights**: (Optional) Integrated financial advisor that analyzes your spending patterns and provides actionable saving suggestions using providers like OpenAI, Anthropic, Gemini, or local models via Ollama.
 - **Modern Tooling**: Managed with `uv` for high performance and strict type safety.
 - **Standalone Distribution**: Ability to compile into a single-file executable for Linux, macOS, and Windows using Nuitka.
 - **CI/CD Ready**: GitHub Actions pipeline for automated formatting, linting, and 100% test coverage verification.
@@ -81,7 +82,50 @@ banktamer --bank santander --config-dir /path/to/my/config --files data.xlsx
 
 # Example: Generating a professional PDF report
 banktamer --bank santander --category common --files data.xlsx --report pdf --output report_2024.pdf
+
+# Example: AI Analysis with local Ollama
+banktamer --bank santander --category common --files data.xlsx --ai ollama
 ```
+
+### AI Financial Analysis
+
+BankTamer includes an optional AI-powered financial advisor that can analyze your categorized data and provide:
+- Detailed spending pattern summaries.
+- Actionable money-saving suggestions.
+- Identification of unusual category spikes or trends.
+
+#### Supported Providers
+
+| Provider | Requirement | Flag |
+| :--- | :--- | :--- |
+| **Ollama** | Running local instance | `--ai ollama` |
+| **OpenAI** | API Key (`OPENAI_API_KEY`) | `--ai openai` |
+| **Anthropic** | API Key (`ANTHROPIC_API_KEY`) | `--ai anthropic` |
+| **Gemini** | API Key (`GOOGLE_API_KEY`) | `--ai gemini` |
+| **Hugging Face**| API Key (`HUGGINGFACE_API_KEY`)| `--ai huggingface` |
+
+#### Local AI (Ollama) Smart Selection
+
+If you use `--ai ollama` without specifying a model, BankTamer performs **intelligent auto-discovery**:
+1.  **Llama 3 First**: It prioritizes `llama3` if it's installed on your system.
+2.  **Resource Efficient**: If `llama3` is missing, it automatically picks the **smallest** available general-purpose model to save memory.
+3.  **Privacy & Quality**: It automatically skips remote "cloud" links and "coder" specialized models (like `deepseek-coder`) to ensure you get high-quality financial advice strictly on your local machine.
+
+To override the selection, use `--ai-model <model_name>`.
+
+#### Customizing AI Prompts (`ai_settings.yaml`)
+
+You can customize the AI's persona and instructions by creating an `ai_settings.yaml` file in your configuration directory (e.g., `~/.banktamer/config/ai_settings.yaml`).
+
+```yaml
+prompt_templates:
+  financial_analysis: |
+    You are a strictly frugal financial advisor. 
+    Analyze the following data and be very critical of any non-essential spending.
+    {summary}
+```
+
+The `{summary}` placeholder is optional; if present, it will be replaced by the monthly financial data. If absent, the data will be appended to your custom prompt.
 
 #### Running directly with `uv`
 
