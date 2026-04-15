@@ -17,7 +17,7 @@ class TestCli(unittest.TestCase):
     @patch("banktamer.cli.AnalyticsProcessor")
     @patch("argparse.ArgumentParser.parse_args")
     @patch("banktamer.cli.print_report")
-    @patch("builtins.open", new_callable=mock_open, read_data='{"santander": {}}')
+    @patch("banktamer.cli.open", new_callable=mock_open, read_data='{"santander": {}}')
     @patch("banktamer.cli.load_rules")
     @patch("builtins.print")
     def test_main_success(
@@ -63,7 +63,7 @@ class TestCli(unittest.TestCase):
     @patch("banktamer.cli.AnalyticsProcessor")
     @patch("argparse.ArgumentParser.parse_args")
     @patch("banktamer.report.pdf.PDFReporter")
-    @patch("builtins.open", new_callable=mock_open, read_data='{"santander": {}}')
+    @patch("banktamer.cli.open", new_callable=mock_open, read_data='{"santander": {}}')
     @patch("banktamer.cli.load_rules")
     @patch("builtins.print")
     def test_main_pdf_report(
@@ -104,7 +104,7 @@ class TestCli(unittest.TestCase):
     @patch("banktamer.cli.AnalyticsProcessor")
     @patch("argparse.ArgumentParser.parse_args")
     @patch("banktamer.cli.os.getenv")
-    @patch("builtins.open", new_callable=mock_open, read_data='{"santander": {}}')
+    @patch("banktamer.cli.open", new_callable=mock_open, read_data='{"santander": {}}')
     @patch("banktamer.cli.load_rules")
     @patch("builtins.print")
     def test_main_ai_missing_key(
@@ -155,7 +155,7 @@ class TestCli(unittest.TestCase):
 
     @patch("banktamer.cli.ExcelReader")
     @patch("argparse.ArgumentParser.parse_args")
-    @patch("builtins.open", new_callable=mock_open, read_data='{"santander": {}}')
+    @patch("banktamer.cli.open", new_callable=mock_open, read_data='{"santander": {}}')
     @patch("builtins.print")
     def test_main_no_transactions(
         self, mock_print: MagicMock, mock_file: MagicMock, mock_args: MagicMock, mock_reader: MagicMock
@@ -180,7 +180,7 @@ class TestCli(unittest.TestCase):
 
     @patch("banktamer.cli.ExcelReader")
     @patch("argparse.ArgumentParser.parse_args")
-    @patch("builtins.open", new_callable=mock_open, read_data='{"santander": {}}')
+    @patch("banktamer.cli.open", new_callable=mock_open, read_data='{"santander": {}}')
     @patch("builtins.print")
     @patch("sys.exit")
     def test_main_error(
@@ -327,7 +327,7 @@ class TestCli(unittest.TestCase):
     @patch("banktamer.cli.os.path.exists")
     @patch("banktamer.cli.load_rules")
     @patch("builtins.print")
-    @patch("builtins.open")
+    @patch("banktamer.cli.open")
     def test_main_with_ai(
         self,
         mock_file: MagicMock,
@@ -412,7 +412,7 @@ class TestCli(unittest.TestCase):
     @patch("banktamer.cli.run_pipeline")
     @patch("argparse.ArgumentParser.parse_args")
     @patch("banktamer.cli.os.path.exists")
-    @patch("builtins.open")
+    @patch("banktamer.cli.open")
     @patch("builtins.print")
     def test_main_with_custom_prompt(
         self,
@@ -454,7 +454,7 @@ class TestCli(unittest.TestCase):
     @patch("banktamer.cli.run_pipeline")
     @patch("argparse.ArgumentParser.parse_args")
     @patch("banktamer.cli.os.path.exists")
-    @patch("builtins.open")
+    @patch("banktamer.cli.open")
     @patch("builtins.print")
     def test_main_with_invalid_yaml(
         self,
@@ -502,7 +502,7 @@ class TestCli(unittest.TestCase):
     @patch("banktamer.cli.run_pipeline")
     @patch("argparse.ArgumentParser.parse_args")
     @patch("banktamer.cli.os.path.exists")
-    @patch("builtins.open")
+    @patch("banktamer.cli.open")
     @patch("builtins.print")
     def test_main_with_custom_prompt_no_placeholder(
         self,
