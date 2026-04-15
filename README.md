@@ -19,7 +19,7 @@
 - **Standardized Ingestion**: Support for multiple bank formats via JSON schemas.
 - **Regex Categorization**: Fully customizable category rules using YAML.
 - **Monthly Analytics**: Automatic grouping by month with totals for income, expenses, and net balance.
-- **Visual Insights**: Automatic generation of colorful terminal bar charts and financial distribution pie charts.
+- **Visual Insights**: Automatic generation of colorful terminal bar charts, financial distribution pie charts, and category evolution line charts (tracking Incomes/Expenses over time).
 - **Modern Reporting**: Export options to professional PDF documents for easy sharing and record keeping.
 - **AI-Powered Insights**: (Optional) Integrated financial advisor that analyzes your spending patterns and provides actionable saving suggestions using providers like OpenAI, Anthropic, Gemini, or local models via Ollama.
 - **Modern Tooling**: Managed with `uv` for high performance and strict type safety.

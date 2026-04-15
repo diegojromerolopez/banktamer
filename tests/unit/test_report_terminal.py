@@ -140,6 +140,47 @@ class TestReportTerminal(unittest.TestCase):
             render_pie_chart([], {})
             mock_print.assert_not_called()
 
+    def test_render_evolution_chart_empty(self) -> None:
+        # Early return if empty
+        from banktamer.report.terminal import render_evolution_chart
+
+        with patch("builtins.print") as mock_print:
+            render_evolution_chart([], {}, {})
+            mock_print.assert_not_called()
+
+    def test_render_evolution_chart_single_value(self) -> None:
+        # Test case where max == min
+        from banktamer.report.terminal import render_evolution_chart
+
+        months = ["2024-01"]
+        evolution = {"A": [10.0]}
+        cat_colors = {"A": "\033[0m"}
+        with patch("builtins.print") as mock_print:
+            render_evolution_chart(months, evolution, cat_colors)
+            print_calls = [str(call) for call in mock_print.mock_calls]
+            self.assertTrue(any("EVOLUTION" in s for s in print_calls))
+            self.assertTrue(any("●" in s for s in print_calls))
+
+    def test_print_report_with_evolution(self) -> None:
+        report_data: dict[str, MonthReport] = {
+            "2024-01": {
+                "total_income": 1000.0,
+                "total_expenses": -500.0,
+                "categories": {"Salary": CategoryStats(total=1000.0)},
+                "unknown_concepts": [],
+            },
+            "2024-02": {
+                "total_income": 0.0,
+                "total_expenses": -200.0,
+                "categories": {"Food": CategoryStats(total=-200.0)},
+                "unknown_concepts": [],
+            },
+        }
+        with patch("builtins.print") as mock_print:
+            print_report(report_data)
+            print_calls = [str(call) for call in mock_print.mock_calls]
+            self.assertTrue(any("EVOLUTION OF INCOMES/EXPENSES" in s for s in print_calls))
+
 
 if __name__ == "__main__":
     unittest.main()

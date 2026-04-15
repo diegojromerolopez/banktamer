@@ -107,6 +107,42 @@ class TestReportPdf(unittest.TestCase):
 
         mock_output.assert_called_once()
 
+    @patch("banktamer.report.pdf.PDFReporter.output")
+    def test_pdf_reporter_evolution_chart_coverage(self, mock_output: MagicMock) -> None:
+        report_data: dict[str, MonthReport] = {
+            "2024-01": {
+                "total_income": 1000.0,
+                "total_expenses": -500.0,
+                "categories": {"Salary": CategoryStats(total=1000.0)},
+                "unknown_concepts": [],
+            },
+            "2024-02": {
+                "total_income": 0.0,
+                "total_expenses": -200.0,
+                "categories": {"Food": CategoryStats(total=-200.0)},
+                "unknown_concepts": [],
+            },
+        }
+        reporter = PDFReporter()
+        with patch.object(reporter, "line") as mock_line, patch.object(reporter, "circle") as mock_circle:
+            reporter.render(report_data, "test.pdf")
+            mock_line.assert_called()
+            mock_circle.assert_called()
+
+    @patch("banktamer.report.pdf.PDFReporter.output")
+    def test_pdf_reporter_evolution_single_value(self, mock_output: MagicMock) -> None:
+        report_data: dict[str, MonthReport] = {
+            "2024-01": {
+                "total_income": 100.0,
+                "total_expenses": 0.0,
+                "categories": {"A": CategoryStats(total=100.0)},
+                "unknown_concepts": [],
+            }
+        }
+        reporter = PDFReporter()
+        reporter.render(report_data, "test.pdf")
+        mock_output.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

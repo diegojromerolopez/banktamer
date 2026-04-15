@@ -60,3 +60,17 @@ class AnalyticsProcessor:
                 cat_stats.max_txn = txn
 
         return dict(sorted(monthly_data.items()))
+
+    def get_evolution_data(self, report_data: dict[str, MonthReport]) -> tuple[list[str], dict[str, list[float]]]:
+        """Transform monthly reports into a category-wise evolution of totals."""
+        months = sorted(report_data.keys())
+        # Find all categories across all months
+        all_categories: set[str] = set()
+        for data in report_data.values():
+            all_categories.update(data["categories"].keys())
+
+        evolution: dict[str, list[float]] = {}
+        for cat in sorted(all_categories):
+            evolution[cat] = [report_data[m]["categories"].get(cat, CategoryStats()).total for m in months]
+
+        return months, evolution

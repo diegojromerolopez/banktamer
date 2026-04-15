@@ -26,6 +26,24 @@ def print_report(report_data: dict[str, MonthReport]) -> None:
 
     palette_expenses = [red, blue, yellow, magenta, cyan, white]
 
+    # Pre-assign consistent colors to all categories across all months
+    all_categories: set[str] = set()
+    income_categories: set[str] = set()
+    for month_data in report_data.values():
+        for cat, stats in month_data["categories"].items():
+            all_categories.add(cat)
+            if stats.total > 0:
+                income_categories.add(cat)
+
+    all_category_colors: dict[str, str] = {}
+    expense_color_idx = 0
+    for cat in sorted(all_categories):
+        if cat in income_categories:
+            all_category_colors[cat] = green
+        else:
+            all_category_colors[cat] = palette_expenses[expense_color_idx % len(palette_expenses)]
+            expense_color_idx += 1
+
     for month, data in report_data.items():
         print(f"\n{blue}{'=' * 50}{reset}")
         print(f" {bold}REPORT FOR {month}{reset}")
@@ -42,15 +60,11 @@ def print_report(report_data: dict[str, MonthReport]) -> None:
         print("-" * 85)
 
         category_colors: dict[str, str] = {}
-        expense_color_idx = 0
-
         for cat, stats in sorted_categories:
+            color = all_category_colors[cat]
             if stats.total > 0:
-                color = green
                 total_for_percent = data["total_income"]
             else:
-                color = palette_expenses[expense_color_idx % len(palette_expenses)]
-                expense_color_idx += 1
                 total_for_percent = data["total_expenses"]
 
             percentage = (stats.total / total_for_percent * 100) if total_for_percent != 0 else 0.0
@@ -83,6 +97,14 @@ def print_report(report_data: dict[str, MonthReport]) -> None:
 
         if sorted_categories:
             render_pie_chart(sorted_categories, category_colors)
+
+    # Evolution Chart
+    if report_data:
+        from banktamer.analytics import AnalyticsProcessor
+
+        processor = AnalyticsProcessor()
+        months, evolution = processor.get_evolution_data(report_data)
+        render_evolution_chart(months, evolution, all_category_colors)
 
 
 def render_pie_chart(sorted_categories: list[tuple[str, CategoryStats]], category_colors: dict[str, str]) -> None:
@@ -136,6 +158,96 @@ def render_pie_chart(sorted_categories: list[tuple[str, CategoryStats]], categor
                 line += f"{char_color}█\033[0m"
             else:
                 line += " "
+        print(line)
+
+
+def render_evolution_chart(months: list[str], evolution: dict[str, list[float]], cat_colors: dict[str, str]) -> None:
+    """Render a text-based line chart in the terminal."""
+    if not months or not evolution:
+        return
+
+    print(f"\n\033[94m{'=' * 50}\033[0m")
+    print(" \033[1mEVOLUTION OF INCOMES/EXPENSES\033[0m")
+    print(f"\033[94m{'=' * 50}\033[0m")
+
+    # Dimensions
+    height = 15
+    width_per_month = 10
+    total_width = len(months) * width_per_month
+
+    # Get max/min values for scaling
+    all_vals = [v for vals in evolution.values() for v in vals]
+    max_val = max(all_vals) if all_vals else 1.0
+    min_val = min(all_vals) if all_vals else 0.0
+
+    # Ensure range is at least something
+    if max_val == min_val:
+        max_val += 1.0
+
+    # Create grid (list of lists of color/char)
+    grid = [[(" ", "\033[0m") for _ in range(total_width)] for _ in range(height)]
+
+    # Draw categories
+    for cat, vals in evolution.items():
+        color = cat_colors.get(cat, "\033[97m")
+        points = []
+        for i, val in enumerate(vals):
+            # Scale x
+            x = i * width_per_month + width_per_month // 2
+            # Scale y (inverted for terminal)
+            y_norm = (val - min_val) / (max_val - min_val)
+            y = height - 1 - int(y_norm * (height - 1))
+            points.append((x, y))
+
+        # Draw dots
+        for px, py in points:
+            if 0 <= px < total_width and 0 <= py < height:
+                grid[py][px] = ("●", color)
+
+        # Draw simple horizontal lines between points
+        for i in range(len(points) - 1):
+            x1, y1 = points[i]
+            x2, y2 = points[i + 1]
+            # Just fill characters between them (very basic line drawing)
+            num_steps = max(abs(x2 - x1), abs(y2 - y1))
+            for step in range(1, num_steps):
+                curr_x = x1 + int(step * (x2 - x1) / num_steps)
+                curr_y = y1 + int(step * (y2 - y1) / num_steps)
+                if 0 <= curr_x < total_width and 0 <= curr_y < height:
+                    # Don't overwrite dots
+                    if grid[curr_y][curr_x][0] == " ":
+                        grid[curr_y][curr_x] = ("·", color)
+
+    # Print grid with Y axis
+    for y in range(height):
+        # Y axis label
+        val = max_val - (y / (height - 1)) * (max_val - min_val)
+        label = f"{val:>8.0f} |"
+        line = label
+        for x in range(total_width):
+            char, color = grid[y][x]
+            line += f"{color}{char}\033[0m"
+        print(line)
+
+    # X axis
+    print(f"{' ' * 9}{'-' * total_width}")
+    # X axis labels
+    x_labels = " " * 9
+    for month in months:
+        # Center the label
+        label = month.center(width_per_month)
+        x_labels += label
+    print(x_labels)
+
+    # Legend
+    print("\nLEGEND:")
+    categories = sorted(evolution.keys())
+    for i in range(0, len(categories), 3):
+        chunk = categories[i : i + 3]
+        line = "  "
+        for cat in chunk:
+            color = cat_colors.get(cat, "\033[0m")
+            line += f"{color}● {cat:<20}\033[0m"
         print(line)
 
 

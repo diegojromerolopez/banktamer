@@ -35,6 +35,18 @@ class TestAnalyticsProcessor(unittest.TestCase):
         if jan_cats["Utilities"].max_txn:
             self.assertEqual(jan_cats["Utilities"].max_txn.concept, "Luz")
 
+    def test_get_evolution_data(self) -> None:
+        report = self.processor.process(self.transactions)
+        months, evolution = self.processor.get_evolution_data(report)
+
+        self.assertEqual(months, ["2024-01", "2024-02"])
+        self.assertIn("Income", evolution)
+        self.assertIn("Utilities", evolution)
+        self.assertIn("Unknown", evolution)
+
+        self.assertEqual(evolution["Utilities"], [-50.0, -60.0])
+        self.assertEqual(evolution["Income"], [1000.0, 0.0])
+
 
 if __name__ == "__main__":
     unittest.main()

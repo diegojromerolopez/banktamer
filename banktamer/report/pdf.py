@@ -59,6 +59,24 @@ class PDFReporter(FPDF):
             (253, 126, 20),  # Orange
         ]
 
+        # Pre-assign consistent colors to all categories across all months
+        all_categories: set[str] = set()
+        income_categories: set[str] = set()
+        for month_data in report_data.values():
+            for cat, stats in month_data["categories"].items():
+                all_categories.add(cat)
+                if stats.total > 0:
+                    income_categories.add(cat)
+
+        all_cat_colors: dict[str, tuple[int, int, int]] = {}
+        expense_color_idx = 0
+        for cat in sorted(all_categories):
+            if cat in income_categories:
+                all_cat_colors[cat] = green
+            else:
+                all_cat_colors[cat] = expense_colors[expense_color_idx % len(expense_colors)]
+                expense_color_idx += 1
+
         for month, data in sorted(report_data.items()):
             self.add_page()
 
@@ -103,18 +121,10 @@ class PDFReporter(FPDF):
 
             self.set_font("helvetica", "", 9)
             category_colors: dict[str, tuple[int, int, int]] = {}
-            expense_color_idx = 0
-
             for cat, stats in sorted_categories:
-                if stats.total > 0:
-                    color = green
-                    total_for_percent = data["total_income"]
-                else:
-                    color = expense_colors[expense_color_idx % len(expense_colors)]
-                    expense_color_idx += 1
-                    total_for_percent = abs(data["total_expenses"])
-
+                total_for_percent = data["total_income"] if stats.total > 0 else abs(data["total_expenses"])
                 percent = (abs(stats.total) / total_for_percent * 100) if total_for_percent != 0 else 0.0
+                color = all_cat_colors[cat]
                 category_colors[cat] = color
 
                 # Row Data
@@ -185,4 +195,101 @@ class PDFReporter(FPDF):
                         0, 5, f"{dt} | {amt:,.2f} | {concept}", border=0, align="L", new_x="LMARGIN", new_y="NEXT"
                     )
 
+        # Evolution Chart Page
+        if report_data:
+            from banktamer.analytics import AnalyticsProcessor
+
+            processor = AnalyticsProcessor()
+            months, evolution = processor.get_evolution_data(report_data)
+            self.add_page()
+            self.render_evolution_chart(months, evolution, all_cat_colors)
+
         self.output(output_path)
+
+    def render_evolution_chart(
+        self, months: list[str], evolution: dict[str, list[float]], cat_colors: dict[str, tuple[int, int, int]]
+    ) -> None:
+        """Draw a line chart showing category evolution."""
+        self.set_font("helvetica", "B", 20)
+        self.set_text_color(33, 37, 41)
+        self.cell(0, 15, "Evolution of Incomes/Expenses", border=0, align="L", new_x="LMARGIN", new_y="NEXT")
+        self.ln(10)
+
+        # Chart area
+        margin_l = 25
+        margin_r = 15
+        chart_w = self.w - margin_l - margin_r
+        chart_h = 100
+        x_base = margin_l
+        y_base = self.get_y() + chart_h
+
+        # Scaling
+        all_vals = [v for vals in evolution.values() for v in vals]
+        max_val = max(all_vals) if all_vals else 1.0
+        min_val = min(all_vals) if all_vals else 0.0
+        if max_val == min_val:
+            max_val += 1.0
+        val_range = max_val - min_val
+
+        # Draw axes
+        self.set_draw_color(127, 140, 141)
+        self.set_line_width(0.3)
+        self.line(x_base, self.get_y(), x_base, y_base)  # Y axis
+        self.line(x_base, y_base, x_base + chart_w, y_base)  # X axis
+
+        # Y axis ticks and labels
+        self.set_font("helvetica", "", 8)
+        self.set_text_color(127, 140, 141)
+        num_ticks = 5
+        for i in range(num_ticks + 1):
+            val = min_val + (i / num_ticks) * val_range
+            y = y_base - (i / num_ticks) * chart_h
+            self.line(x_base - 2, y, x_base, y)
+            self.set_xy(x_base - 22, y - 2)
+            self.cell(20, 4, f"{val:,.0f}", border=0, align="R")
+
+        # X axis ticks and labels
+        num_months = len(months)
+        x_step = chart_w / (num_months - 1) if num_months > 1 else chart_w
+        for i, month in enumerate(months):
+            x = x_base + i * x_step
+            self.line(x, y_base, x, y_base + 2)
+            self.set_xy(x - 10, y_base + 3)
+            self.cell(20, 4, month, border=0, align="C")
+
+        # Lines
+        for cat, vals in evolution.items():
+            color = cat_colors.get(cat, (0, 0, 0))
+            self.set_draw_color(*color)
+            self.set_line_width(0.5)
+            prev_point = None
+            for i, val in enumerate(vals):
+                x = x_base + i * x_step
+                y = y_base - ((val - min_val) / val_range) * chart_h
+
+                # Draw dot
+                self.set_fill_color(*color)
+                self.circle(x, y, 1, "F")
+
+                if prev_point:
+                    self.line(prev_point[0], prev_point[1], x, y)
+                prev_point = (x, y)
+
+        # Legend
+        self.set_y(y_base + 15)
+        self.set_font("helvetica", "B", 10)
+        self.set_text_color(33, 37, 41)
+        self.cell(0, 10, "Legend", border=0, align="L", new_x="LMARGIN", new_y="NEXT")
+
+        self.set_font("helvetica", "", 9)
+        categories = sorted(evolution.keys())
+        for i in range(0, len(categories), 4):
+            chunk = categories[i : i + 4]
+            for cat in chunk:
+                color = cat_colors.get(cat, (0, 0, 0))
+                curr_x, curr_y = self.get_x(), self.get_y()
+                self.set_fill_color(*color)
+                self.circle(curr_x + 2, curr_y + 2, 1, "F")
+                self.set_xy(curr_x + 5, curr_y)
+                self.cell(40, 4, cat, border=0, align="L")
+            self.ln(5)
