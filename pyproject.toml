@@ -12,6 +12,17 @@ include = ["banktamer"]
 name = "banktamer"
 version = "0.1.0"
 description = "A CLI tool to categorize and analyze bank transaction exports (XLS/XLSX)."
+authors = [
+  { name="Diego J. Romero López", email="diegojromerolopez@gmail.com" }
+]
+classifiers=[
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries",
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License"
+]
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
