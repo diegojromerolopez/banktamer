@@ -280,23 +280,6 @@ class TestCli(unittest.TestCase):
             self.assertEqual(rules["General"], ["Tax", "Other"])  # Merged
             self.assertEqual(rules["Utilities"], ["Gas"])
 
-    @patch("os.path.exists")
-    @patch("os.path.expanduser")
-    @patch("sys.frozen", True, create=True)
-    @patch("sys._MEIPASS", "/frozen_dir", create=True)
-    def test_resolve_config_frozen(self, mock_expanduser: MagicMock, mock_exists: MagicMock) -> None:
-        from banktamer.cli import resolve_config
-
-        args = MagicMock(config_dir=None, schemas=None, rules_dir=None)
-        mock_expanduser.return_value = "/home/user/.banktamer/config"
-        # 1. config/schemas.json (False)
-        # 2. /home/user/.banktamer/config/schemas.json (False)
-        # 3. /frozen_dir/banktamer/config/schemas.json (True)
-        mock_exists.side_effect = [False, False, True]
-
-        config = resolve_config(args)
-        self.assertEqual(config["schemas"], "/frozen_dir/banktamer/config/schemas.json")
-
     @patch("banktamer.cli.run_pipeline")
     @patch("argparse.ArgumentParser.parse_args")
     @patch("builtins.print")

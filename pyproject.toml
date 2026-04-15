@@ -10,7 +10,7 @@ include = ["banktamer"]
 
 [project]
 name = "banktamer"
-version = "0.1.0"
+version = "0.1.1"
 description = "A CLI tool to categorize and analyze bank transaction exports (XLS/XLSX)."
 authors = [
   { name="Diego J. Romero López", email="diegojromerolopez@gmail.com" }
@@ -55,9 +55,7 @@ show_error_codes = true
 dev = [
     "coverage>=7.13.5",
     "mypy>=1.20.0",
-    "nuitka>=4.0.8",
     "pandas-stubs>=3.0.0.260204",
     "ruff>=0.15.10",
     "types-pyyaml>=6.0.12.20260408",
-    "zstandard>=0.25.0",
 ]

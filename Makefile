@@ -1,4 +1,4 @@
-.PHONY: install format lint test test-integration test-e2e test-all run tag
+.PHONY: install format lint test test-integration test-all run tag
 
 UV = uv
 
@@ -19,10 +19,7 @@ test:
 test-integration:
 	$(UV) run python -m unittest discover tests/integration
 
-test-e2e:
-	$(UV) run python -m unittest tests/e2e/test_binary.py
-
-test-all: test test-integration test-e2e
+test-all: test test-integration
 
 run:
 	$(UV) run banktamer $(args)
@@ -38,8 +35,6 @@ tag:
 	git tag -a v$$VERSION -m "Release v$$VERSION" && \
 	git push origin v$$VERSION
 
-dist-exe:
-	$(UV) run python -m nuitka --standalone --onefile --include-data-dir=banktamer/config=banktamer/config --output-dir=dist --output-filename=banktamer banktamer/cli.py
-
 clean:
-	rm -rf build dist banktamer.spec
+	rm -rf build dist
+

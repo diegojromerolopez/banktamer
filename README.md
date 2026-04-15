@@ -23,7 +23,6 @@
 - **Modern Reporting**: Export options to professional PDF documents for easy sharing and record keeping.
 - **AI-Powered Insights**: (Optional) Integrated financial advisor that analyzes your spending patterns and provides actionable saving suggestions using providers like OpenAI, Anthropic, Gemini, or local models via Ollama.
 - **Modern Tooling**: Managed with `uv` for high performance and strict type safety.
-- **Standalone Distribution**: Ability to compile into a single-file executable for Linux, macOS, and Windows using Nuitka.
 - **CI/CD Ready**: GitHub Actions pipeline for automated formatting, linting, and 100% test coverage verification.
 
 ---
@@ -43,10 +42,7 @@ make install
 
 ### Installation Options
 
-#### 1. Standalone Binary (Recommended for non-developers)
-Download the latest `banktamer` executable for your OS from the [GitHub Releases](https://github.com/diegojromerolopez/banktamer/releases) page. No Python installation is required to run the binary.
-
-#### 2. Global Installation (via `pipx`)
+#### 1. Global Installation (via `pipx`)
 To install `banktamer` as a global command on your system:
 
 ```bash
@@ -175,8 +171,7 @@ banktamer/
 │   ├── report/          # Reporting engine
 ├── tests/
 │   ├── unit/            # Unit tests (100% coverage mandatory)
-│   ├── integration/     # Integration tests (verifying banks & happy paths)
-│   └── e2e/             # End-to-end tests (verifying compiled binary)
+│   └── integration/     # Integration tests (verifying banks & happy paths)
 ├── GEMINI.md            # Critical AI/Developer coding rules
 ├── Makefile             # Development automation
 └── pyproject.toml       # Dependencies & Config
@@ -189,7 +184,6 @@ Use the provided `Makefile` for standard tasks:
 - **Format code**: `make format`
 - **Lint code**: `make lint` (Ruff & Mypy)
 - **Run all tests**: `make test-all`
-- **Build standalone binary**: `make dist-exe`
 - **Tag and push release**: `make tag` (triggers GitHub Release and PyPI publication)
 
 ### Testing Strategy
@@ -200,26 +194,16 @@ Use the provided `Makefile` for standard tasks:
 2.  **Integration Tests (`tests/integration`)**:
     - **Schema Verification**: Every bank defined in `config/schemas.json` is automatically verified against generated Excel files to ensure parsing logic is correct.
     - **Happy Paths**: End-to-end functional flows for different bank formats (unified vs. split amounts).
-3.  **E2E Tests (`tests/e2e`)**: Verifies that the compiled Nuitka binary works correctly in an isolated environment using bundled configuration.
 
 Run specific test suites:
 
 ```bash
 make test             # Unit tests only
 make test-integration # Integration tests only
-make test-e2e         # E2E tests (builds binary if missing)
 make test-all         # All of the above
 ```
 
-### Standalone Executable (Nuitka)
 
-`banktamer` can be compiled into a standalone executable that includes the Python interpreter, dependencies, and default configuration.
-
-```bash
-make dist-exe
-```
-
-The resulting binary will be located in the `dist/` directory. This is the same process used by the CI pipeline to generate GitHub Releases.
 
 ### Adding a New Bank
 
