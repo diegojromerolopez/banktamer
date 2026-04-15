@@ -1,4 +1,4 @@
-.PHONY: install format lint test test-integration test-e2e test-all run
+.PHONY: install format lint test test-integration test-e2e test-all run tag
 
 UV = uv
 
@@ -29,6 +29,14 @@ run:
 
 build:
 	$(UV) build
+
+# Create a git tag using the version in pyproject.toml and push it.
+# This triggers the CI/CD pipeline to create a GitHub Release and publish to PyPI.
+tag:
+	@VERSION=$$(grep "^version =" pyproject.toml | sed 's/version = "\(.*\)"/\1/') && \
+	echo "Tagging version v$$VERSION" && \
+	git tag -a v$$VERSION -m "Release v$$VERSION" && \
+	git push origin v$$VERSION
 
 dist-exe:
 	$(UV) run python -m nuitka --standalone --onefile --include-data-dir=banktamer/config=banktamer/config --output-dir=dist --output-filename=banktamer banktamer/cli.py

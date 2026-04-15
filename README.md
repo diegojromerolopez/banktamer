@@ -12,7 +12,7 @@
 
 # BankTamer
 
-`banktamer` is a Python 3.10+ CLI utility designed to process bank transaction files (XLS/XLSX), categorize operations using regex-based pattern matching, and generate detailed financial reports.
+`banktamer` is a Python 3.13+ CLI utility designed to process bank transaction files (XLS/XLSX), categorize operations using regex-based pattern matching, and generate detailed financial reports.
 
 ## Features
 
@@ -190,6 +190,7 @@ Use the provided `Makefile` for standard tasks:
 - **Lint code**: `make lint` (Ruff & Mypy)
 - **Run all tests**: `make test-all`
 - **Build standalone binary**: `make dist-exe`
+- **Tag and push release**: `make tag` (triggers GitHub Release and PyPI publication)
 
 ### Testing Strategy
 

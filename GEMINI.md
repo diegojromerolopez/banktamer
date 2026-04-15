@@ -102,6 +102,7 @@ Integration tests ensure that all components work together correctly:
 - `make lint`: Runs `ruff` and `mypy` (strict mode) on both source and tests.
 - `make format`: Automatically fixes formatting issues via `ruff`.
 - `make dist-exe`: Builds a standalone executable using Nuitka.
+- `make tag`: Creates a git tag using the version from `pyproject.toml` and pushes it. This triggers a GitHub Release and publishes the package to PyPI.
 
 ## Distribution & Releases
 
