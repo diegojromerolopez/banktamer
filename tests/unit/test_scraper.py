@@ -5,7 +5,12 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, call
 
-from playwright.sync_api import Locator, Page
+from playwright.sync_api import (
+    Error as PlaywrightError,
+    Locator,
+    Page,
+    TimeoutError as PlaywrightTimeoutError,
+)
 
 from banktamer.scraper import (
     BankProfile,
@@ -174,6 +179,7 @@ class TestStepExecutor(unittest.TestCase):
 
     def setUp(self) -> None:
         self.mock_page = MagicMock(spec=Page)
+        self.mock_logger = MagicMock()
         self.profile = BankProfile(
             name="test_bank",
             bank="test-bank",
@@ -189,6 +195,7 @@ class TestStepExecutor(unittest.TestCase):
             credentials={"user": "diego"},
             env={"PASS": "1234"},
             download_dir="/tmp/test_downloads",
+            logger=self.mock_logger,
         )
 
     def test_execute_navigate_with_step_url(self) -> None:
@@ -313,6 +320,29 @@ class TestStepExecutor(unittest.TestCase):
         step = Step(action="download")
         with self.assertRaises(BrowserAutomationError):
             self.executor.execute_step(step)
+
+    def test_execute_playwright_error_captures_screenshot_and_raises(self) -> None:
+        self.mock_page.goto.side_effect = PlaywrightTimeoutError("Navigation timed out")
+        self.mock_page.url = "https://example.com/login"
+        step = Step(action="navigate", url="https://example.com/login")
+        with self.assertRaises(BrowserAutomationError) as cm:
+            self.executor.execute_step(step)
+
+        self.assertIn("Navigation timed out", str(cm.exception))
+        self.assertIn("automation_error.png", str(cm.exception))
+        self.assertEqual(
+            self.mock_page.screenshot.call_args_list, [call(path="/tmp/test_downloads/automation_error.png")]
+        )
+
+    def test_execute_playwright_error_screenshot_failure_handled(self) -> None:
+        self.mock_page.goto.side_effect = PlaywrightError("Page crashed")
+        self.mock_page.url = "https://example.com"
+        self.mock_page.screenshot.side_effect = PlaywrightError("Cannot screenshot")
+        step = Step(action="navigate", url="https://example.com")
+        with self.assertRaises(BrowserAutomationError) as cm:
+            self.executor.execute_step(step)
+
+        self.assertIn("Page crashed", str(cm.exception))
 
     def test_execute_unsupported_action(self) -> None:
         step = Step(action="unknown_action")

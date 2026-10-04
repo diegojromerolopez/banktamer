@@ -28,9 +28,9 @@ steps:
   - action: "click"
     selector: "button[aria-label='Acción 3 de 3: Descargar movimientos']"
   - action: "wait_for_selector"
-    selector: ".san-modal.small.initialized"
+    selector: "button[aria-label='Descargar en formato Excel']"
   - action: "click"
-    selector: ".san-modal.small.initialized button[aria-label='Descargar en formato Excel']"
+    selector: "button[aria-label='Descargar en formato Excel']"
   - action: "wait"
     seconds: 2
   - action: "download"

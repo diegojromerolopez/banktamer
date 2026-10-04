@@ -7,7 +7,14 @@ import os
 import re
 from typing import Literal
 import yaml
-from playwright.sync_api import Locator, Page, Playwright, sync_playwright
+from playwright.sync_api import (
+    Error as PlaywrightError,
+    Locator,
+    Page,
+    Playwright,
+    TimeoutError as PlaywrightTimeoutError,
+    sync_playwright,
+)
 
 
 class ProfileError(Exception):
@@ -162,6 +169,7 @@ class StepExecutor:
         credentials: dict[str, str],
         env: dict[str, str],
         download_dir: str,
+        logger: Callable[[str], None] = print,
     ) -> None:
         """Initialize the executor with page context and configuration."""
         self._page = page
@@ -169,6 +177,36 @@ class StepExecutor:
         self._credentials = credentials
         self._env = env
         self._download_dir = download_dir
+        self._logger = logger
+
+    def _format_step_details(self, step: Step) -> str:
+        """Format step details for console logging while masking sensitive values."""
+        if step.action == "navigate":
+            return f"url='{step.url or self._profile.url}'"
+        if step.action == "fill":
+            raw_val = step.value or ""
+            is_secret = any(
+                term in (step.selector or "").lower() or term in raw_val.lower() for term in ("pass", "secret", "token")
+            )
+            val_display = "********" if is_secret else raw_val
+            return f"selector='{step.selector}' value='{val_display}'"
+        if step.action == "click":
+            details = f"selector='{step.selector}'"
+            if step.has_text:
+                details += f" has_text='{step.has_text}'"
+            if step.first:
+                details += " (first)"
+            return details
+        if step.action == "wait_for_url":
+            return f"url='{step.url}'"
+        if step.action == "wait_for_selector":
+            return f"selector='{step.selector}' state='{step.state or 'visible'}'"
+        if step.action == "wait":
+            sec = step.seconds if step.seconds is not None else 1.0
+            return f"{sec}s"
+        if step.action == "download":
+            return f"selector='{step.selector}' (waiting for file download)"
+        return ""
 
     def _get_locator(self, step: Step) -> Locator:
         """Get the configured locator for a step."""
@@ -182,64 +220,82 @@ class StepExecutor:
             return locator.first
         return locator
 
-    def execute_step(self, step: Step) -> str | None:
+    def execute_step(self, step: Step, step_idx: int = 1, total_steps: int = 1) -> str | None:
         """Execute a single step and return the downloaded file path if this was a download step."""
+        details = self._format_step_details(step)
+        self._logger(f"[{step_idx}/{total_steps}] {step.action}: {details}")
+
         effective_timeout = step.timeout_ms if step.timeout_ms is not None else self._profile.timeout_ms
 
-        if step.action == "navigate":
-            target_url = step.url or self._profile.url
-            if not target_url:
-                raise BrowserAutomationError("Navigate step requires a URL.")
-            self._page.goto(target_url, timeout=effective_timeout)
-            return None
+        try:
+            if step.action == "navigate":
+                target_url = step.url or self._profile.url
+                if not target_url:
+                    raise BrowserAutomationError("Navigate step requires a URL.")
+                self._page.goto(target_url, timeout=effective_timeout)
+                return None
 
-        if step.action == "fill":
-            if not step.selector:
-                raise BrowserAutomationError("Fill step requires a selector.")
-            raw_value = step.value or ""
-            resolved_value = resolve_placeholders(raw_value, self._credentials, self._env)
-            self._page.locator(step.selector).fill(resolved_value, timeout=effective_timeout)
-            return None
+            if step.action == "fill":
+                if not step.selector:
+                    raise BrowserAutomationError("Fill step requires a selector.")
+                raw_value = step.value or ""
+                resolved_value = resolve_placeholders(raw_value, self._credentials, self._env)
+                self._page.locator(step.selector).fill(resolved_value, timeout=effective_timeout)
+                return None
 
-        if step.action == "click":
-            if not step.selector:
-                raise BrowserAutomationError("Click step requires a selector.")
-            locator = self._get_locator(step)
-            locator.click(timeout=effective_timeout)
-            return None
-
-        if step.action == "wait_for_url":
-            if not step.url:
-                raise BrowserAutomationError("Wait_for_url step requires a URL.")
-            self._page.wait_for_url(step.url, timeout=effective_timeout)
-            return None
-
-        if step.action == "wait_for_selector":
-            if not step.selector:
-                raise BrowserAutomationError("Wait_for_selector step requires a selector.")
-            target_state = step.state or "visible"
-            self._page.wait_for_selector(step.selector, state=target_state, timeout=effective_timeout)
-            return None
-
-        if step.action == "wait":
-            wait_seconds = step.seconds if step.seconds is not None else 1.0
-            self._page.wait_for_timeout(wait_seconds * 1000.0)
-            return None
-
-        if step.action == "download":
-            if not step.selector:
-                raise BrowserAutomationError("Download step requires a selector.")
-            locator = self._get_locator(step)
-            with self._page.expect_download(timeout=effective_timeout) as download_info:
+            if step.action == "click":
+                if not step.selector:
+                    raise BrowserAutomationError("Click step requires a selector.")
+                locator = self._get_locator(step)
                 locator.click(timeout=effective_timeout)
-            download = download_info.value
-            filename = download.suggested_filename
-            os.makedirs(self._download_dir, exist_ok=True)
-            target_path = os.path.join(self._download_dir, filename)
-            download.save_as(target_path)
-            return target_path
+                return None
 
-        raise BrowserAutomationError(f"Unsupported action '{step.action}'.")
+            if step.action == "wait_for_url":
+                if not step.url:
+                    raise BrowserAutomationError("Wait_for_url step requires a URL.")
+                self._page.wait_for_url(step.url, timeout=effective_timeout)
+                return None
+
+            if step.action == "wait_for_selector":
+                if not step.selector:
+                    raise BrowserAutomationError("Wait_for_selector step requires a selector.")
+                target_state = step.state or "visible"
+                self._page.wait_for_selector(step.selector, state=target_state, timeout=effective_timeout)
+                return None
+
+            if step.action == "wait":
+                wait_seconds = step.seconds if step.seconds is not None else 1.0
+                self._page.wait_for_timeout(wait_seconds * 1000.0)
+                return None
+
+            if step.action == "download":
+                if not step.selector:
+                    raise BrowserAutomationError("Download step requires a selector.")
+                locator = self._get_locator(step)
+                with self._page.expect_download(timeout=effective_timeout) as download_info:
+                    locator.click(timeout=effective_timeout)
+                download = download_info.value
+                filename = download.suggested_filename
+                os.makedirs(self._download_dir, exist_ok=True)
+                target_path = os.path.join(self._download_dir, filename)
+                download.save_as(target_path)
+                return target_path
+
+            raise BrowserAutomationError(f"Unsupported action '{step.action}'.")
+        except (PlaywrightTimeoutError, PlaywrightError) as e:
+            current_url = getattr(self._page, "url", "unknown")
+            screenshot_notice = ""
+            try:
+                os.makedirs(self._download_dir, exist_ok=True)
+                screenshot_path = os.path.join(self._download_dir, "automation_error.png")
+                self._page.screenshot(path=screenshot_path)
+                screenshot_notice = f" (Saved debug screenshot to {screenshot_path})"
+            except Exception:
+                pass
+            raise BrowserAutomationError(
+                f"Browser step '{step.action}' failed on '{step.selector or step.url}'. "
+                f"Current page URL: {current_url}. Error: {e}{screenshot_notice}"
+            ) from e
 
 
 class BankScraper:
@@ -249,10 +305,12 @@ class BankScraper:
         self,
         env: dict[str, str] | None = None,
         playwright_launcher: Callable[[], AbstractContextManager[Playwright]] | None = None,
+        logger: Callable[[str], None] = print,
     ) -> None:
         """Initialize the scraper with environment and launcher dependencies."""
         self._env = env if env is not None else dict(os.environ)
         self._playwright_launcher = playwright_launcher or sync_playwright
+        self._logger = logger
 
     def _resolve_credentials(self, profile: BankProfile) -> dict[str, str]:
         """Verify and resolve required credentials from the environment."""
@@ -275,16 +333,20 @@ class BankScraper:
             credentials=credentials,
             env=self._env,
             download_dir=download_dir,
+            logger=self._logger,
         )
+        total = len(profile.steps)
+        self._logger(f"Running profile '{profile.name}' ({total} steps) for bank '{profile.bank}'...")
         downloaded_file: str | None = None
-        for step in profile.steps:
-            result = executor.execute_step(step)
+        for idx, step in enumerate(profile.steps, start=1):
+            result = executor.execute_step(step, step_idx=idx, total_steps=total)
             if result:
                 downloaded_file = result
 
         if not downloaded_file:
             raise BrowserAutomationError(f"Profile '{profile.name}' did not download any transaction file.")
 
+        self._logger(f"Successfully downloaded: {downloaded_file}")
         return downloaded_file
 
     def download(self, profile: BankProfile, download_dir: str, headless: bool | None = None) -> str:
