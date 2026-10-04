@@ -4,6 +4,7 @@ UV = uv
 
 install:
 	$(UV) sync
+	$(UV) run playwright install chromium
 
 format:
 	$(UV) run ruff format .
