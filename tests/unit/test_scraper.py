@@ -3,7 +3,7 @@
 import os
 import tempfile
 import unittest
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock, call, patch
 
 from playwright.sync_api import (
     Error as PlaywrightError,
@@ -22,6 +22,7 @@ from banktamer.scraper import (
     ProfileNotFoundError,
     Step,
     StepExecutor,
+    default_prompt_getter,
     load_profile,
     resolve_placeholders,
 )
@@ -353,17 +354,57 @@ class TestStepExecutor(unittest.TestCase):
 class TestBankScraper(unittest.TestCase):
     """Unit tests for BankScraper runner and launcher."""
 
-    def test_resolve_credentials_missing_env(self) -> None:
+    @patch("sys.stdin.isatty", return_value=False)
+    def test_default_prompt_getter_non_tty(self, mock_isatty: MagicMock) -> None:
+        self.assertEqual(default_prompt_getter("password", "PASS_VAR"), "")
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("getpass.getpass", return_value="secret123")
+    def test_default_prompt_getter_secret(self, mock_getpass: MagicMock, mock_isatty: MagicMock) -> None:
+        val = default_prompt_getter("password", "PASS_VAR")
+        self.assertEqual(val, "secret123")
+        self.assertEqual(mock_getpass.call_args_list, [call("Enter password (PASS_VAR): ")])
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("builtins.input", return_value="john_doe")
+    def test_default_prompt_getter_regular(self, mock_input: MagicMock, mock_isatty: MagicMock) -> None:
+        val = default_prompt_getter("username", "USER_VAR")
+        self.assertEqual(val, "john_doe")
+        self.assertEqual(mock_input.call_args_list, [call("Enter username (USER_VAR): ")])
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("builtins.input", side_effect=EOFError)
+    def test_default_prompt_getter_eoferror(self, mock_input: MagicMock, mock_isatty: MagicMock) -> None:
+        val = default_prompt_getter("username", "USER_VAR")
+        self.assertEqual(val, "")
+
+    def test_resolve_credentials_prompts_when_missing_or_empty(self) -> None:
         profile = BankProfile(
             name="test",
             bank="test-bank",
             url="https://example.com",
             steps=(),
-            credentials={"user": CredentialConfig(env_var="MISSING_USER")},
+            credentials={"password": CredentialConfig(env_var="MISSING_PASS")},
             headless=True,
             timeout_ms=10000.0,
         )
-        scraper = BankScraper(env={})
+        mock_prompt = MagicMock(return_value="prompted_secret")
+        scraper = BankScraper(env={}, prompt_getter=mock_prompt)
+        creds = scraper._resolve_credentials(profile)
+        self.assertEqual(creds, {"password": "prompted_secret"})
+        self.assertEqual(mock_prompt.call_args_list, [call("password", "MISSING_PASS")])
+
+    def test_resolve_credentials_missing_and_prompt_empty_raises(self) -> None:
+        profile = BankProfile(
+            name="test",
+            bank="test-bank",
+            url="https://example.com",
+            steps=(),
+            credentials={"password": CredentialConfig(env_var="MISSING_PASS")},
+            headless=True,
+            timeout_ms=10000.0,
+        )
+        scraper = BankScraper(env={}, prompt_getter=lambda n, e: "")
         with self.assertRaises(MissingCredentialError):
             scraper.run_steps(page=MagicMock(spec=Page), profile=profile, download_dir="/tmp")
 

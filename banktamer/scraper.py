@@ -298,6 +298,24 @@ class StepExecutor:
             ) from e
 
 
+def default_prompt_getter(name: str, env_var: str) -> str:
+    """Prompt the user for a credential from terminal input."""
+    import getpass
+    import sys
+
+    if not sys.stdin.isatty():
+        return ""
+
+    is_secret = any(term in name.lower() or term in env_var.lower() for term in ("pass", "secret", "token", "key"))
+    prompt_text = f"Enter {name} ({env_var}): "
+    try:
+        if is_secret:
+            return getpass.getpass(prompt_text)
+        return input(prompt_text)
+    except (EOFError, OSError):
+        return ""
+
+
 class BankScraper:
     """Automate bank website interaction to download transaction exports."""
 
@@ -306,21 +324,23 @@ class BankScraper:
         env: dict[str, str] | None = None,
         playwright_launcher: Callable[[], AbstractContextManager[Playwright]] | None = None,
         logger: Callable[[str], None] = print,
+        prompt_getter: Callable[[str, str], str] | None = None,
     ) -> None:
         """Initialize the scraper with environment and launcher dependencies."""
         self._env = env if env is not None else dict(os.environ)
         self._playwright_launcher = playwright_launcher or sync_playwright
         self._logger = logger
+        self._prompt_getter = prompt_getter or default_prompt_getter
 
     def _resolve_credentials(self, profile: BankProfile) -> dict[str, str]:
-        """Verify and resolve required credentials from the environment."""
+        """Verify and resolve required credentials from the environment or user prompt."""
         resolved: dict[str, str] = {}
         for name, config in profile.credentials.items():
             val = self._env.get(config.env_var)
             if not val:
-                raise MissingCredentialError(
-                    f"Missing required environment variable '{config.env_var}' for credential '{name}'"
-                )
+                val = self._prompt_getter(name, config.env_var)
+            if not val:
+                raise MissingCredentialError(f"Missing required credential '{name}' ({config.env_var})")
             resolved[name] = val
         return resolved
 
