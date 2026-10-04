@@ -5,7 +5,7 @@ import sys
 import unittest
 from unittest.mock import MagicMock, call, patch
 
-from banktamer.cli import ConfigPaths, handle_profile_download, main, resolve_config
+from banktamer.cli import ConfigPaths, handle_profile_download, load_environment, main, resolve_config
 from banktamer.scraper import BankProfile, BrowserAutomationError, ProfileError, Step
 
 
@@ -228,6 +228,39 @@ class TestCliProfile(unittest.TestCase):
             mock_print.call_args_list,
             [call("Configuration or Data Error: Failed to click selector", file=sys.stderr)],
         )
+
+    @patch("dotenv.load_dotenv")
+    def test_load_environment_custom_file(self, mock_load_dotenv: MagicMock) -> None:
+        load_environment(env_file="my_custom.env")
+        self.assertEqual(mock_load_dotenv.call_args_list, [call(dotenv_path="my_custom.env", override=False)])
+
+    @patch("os.path.exists")
+    @patch("dotenv.load_dotenv")
+    def test_load_environment_local_dotenv(self, mock_load_dotenv: MagicMock, mock_exists: MagicMock) -> None:
+        mock_exists.side_effect = lambda path: path == ".env"
+        load_environment()
+        self.assertEqual(mock_load_dotenv.call_args_list, [call(dotenv_path=".env", override=False)])
+
+    @patch("os.path.expanduser")
+    @patch("os.path.exists")
+    @patch("dotenv.load_dotenv")
+    def test_load_environment_home_dotenv(
+        self, mock_load_dotenv: MagicMock, mock_exists: MagicMock, mock_expanduser: MagicMock
+    ) -> None:
+        mock_expanduser.return_value = "/home/user/.banktamer/.env"
+        mock_exists.side_effect = lambda path: path == "/home/user/.banktamer/.env"
+        load_environment()
+        self.assertEqual(
+            mock_load_dotenv.call_args_list,
+            [call(dotenv_path="/home/user/.banktamer/.env", override=False)],
+        )
+
+    @patch("os.path.exists")
+    @patch("dotenv.load_dotenv")
+    def test_load_environment_no_file(self, mock_load_dotenv: MagicMock, mock_exists: MagicMock) -> None:
+        mock_exists.return_value = False
+        load_environment()
+        self.assertEqual(mock_load_dotenv.call_args_list, [])
 
 
 if __name__ == "__main__":

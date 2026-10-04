@@ -192,6 +192,24 @@ def generate_report(args: argparse.Namespace, report_data: dict[str, MonthReport
             print(f"AI Analysis failed: {e}")
 
 
+def load_environment(env_file: str | None = None) -> None:
+    """Load environment variables from specified or default .env files."""
+    from dotenv import load_dotenv
+
+    if env_file:
+        load_dotenv(dotenv_path=env_file, override=False)
+        return
+
+    # 1. Local .env in current directory
+    if os.path.exists(".env"):
+        load_dotenv(dotenv_path=".env", override=False)
+
+    # 2. Home directory ~/.banktamer/.env
+    home_env = os.path.expanduser("~/.banktamer/.env")
+    if os.path.exists(home_env):
+        load_dotenv(dotenv_path=home_env, override=False)
+
+
 def handle_profile_download(
     args: argparse.Namespace,
     config: ConfigPaths,
@@ -227,6 +245,7 @@ def main() -> None:
     parser.add_argument(
         "--headless", action=argparse.BooleanOptionalAction, default=None, help="Run browser in headless mode"
     )
+    parser.add_argument("--env-file", help="Path to .env file (default: ./.env or ~/.banktamer/.env)")
     parser.add_argument("--config-dir", help="Base directory for configurations (default: ./config)")
     parser.add_argument("--schemas", help="Path to schemas.json")
     parser.add_argument("--rules-dir", help="Path to categories rules directory")
@@ -242,6 +261,8 @@ def main() -> None:
     parser.add_argument("--ai-model", help="Override default model for the AI provider")
 
     args = parser.parse_args()
+    load_environment(getattr(args, "env_file", None))
+
     if not args.bank and not args.profile:
         parser.error("one of the arguments --bank or --profile is required")
     if not args.files and not args.profile:
