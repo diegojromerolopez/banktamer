@@ -1,0 +1,38 @@
+bank: "santander-es"
+url: "https://particulares.bancosantander.es/oneweb/"
+headless: true
+timeout_ms: 30000
+credentials:
+  username:
+    env: "SANTANDER_USERNAME"
+  password:
+    env: "SANTANDER_PASSWORD"
+steps:
+  - action: "navigate"
+    url: "https://particulares.bancosantander.es/oneweb/"
+  - action: "fill"
+    selector: "#san-text-input-1"
+    value: "${username}"
+  - action: "fill"
+    selector: "#san-text-input-0"
+    value: "${password}"
+  - action: "click"
+    selector: "button.san-ending-button"
+  - action: "wait_for_url"
+    url: "https://particulares.bancosantander.es/oneweb/global-position"
+  - action: "click"
+    selector: "button.san-product-cards__interactive-layer"
+    first: true
+  - action: "wait_for_url"
+    url: "https://particulares.bancosantander.es/oneweb/accounts"
+  - action: "click"
+    selector: "button[aria-label='Acción 3 de 3: Descargar movimientos']"
+  - action: "wait_for_selector"
+    selector: ".san-modal.small.initialized"
+  - action: "click"
+    selector: ".san-modal.small.initialized button[aria-label='Descargar en formato Excel']"
+  - action: "wait"
+    seconds: 2
+  - action: "download"
+    selector: "san-ending-button"
+    has_text: "Descargar"

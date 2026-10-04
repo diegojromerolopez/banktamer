@@ -75,6 +75,9 @@ Once installed, use the `banktamer` command:
 # General usage
 banktamer --bank <bank-name> --category <category-name> --files <path-to-excel> [path-to-other-excel ...]
 
+# Automated Bank Download: Connect to Santander, download transactions, and analyze
+banktamer --profile santander
+
 # Example: Santander with common rules
 banktamer --bank santander --category common --files downloads/extract_2024.xlsx
 
@@ -90,6 +93,26 @@ banktamer --bank santander --category common --files data.xlsx --report pdf --ou
 # Example: AI Analysis with local Ollama
 banktamer --bank santander --category common --files data.xlsx --ai ollama
 ```
+
+### Automated Bank Downloads (`--profile`)
+
+BankTamer supports automated bank scraping via Playwright to log in, navigate, and download your transaction files directly.
+
+Bank profiles are YAML files configured in `config/profiles/<profile_name>.yaml`. For example, with `santander.yaml`:
+
+1. Set your credentials in environment variables:
+   ```bash
+   export SANTANDER_USERNAME="your-id"
+   export SANTANDER_PASSWORD="your-password"
+   ```
+2. Run BankTamer with the profile:
+   ```bash
+   banktamer --profile santander
+   ```
+   You can also specify `--download-dir` or `--no-headless` to watch the browser in action:
+   ```bash
+   banktamer --profile santander --no-headless --download-dir ./my_statements
+   ```
 
 ### AI Financial Analysis
 
