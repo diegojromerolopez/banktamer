@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
+from datetime import date, timedelta
 import os
 import re
 from typing import Literal
@@ -15,6 +16,7 @@ from playwright.sync_api import (
     TimeoutError as PlaywrightTimeoutError,
     sync_playwright,
 )
+from banktamer.date_utils import parse_date_string
 
 
 class ProfileError(Exception):
@@ -57,6 +59,10 @@ class Step:
     state: Literal["attached", "detached", "visible", "hidden"] | None = None
     seconds: float | None = None
     timeout_ms: float | None = None
+    item_selector: str | None = None
+    date_selector: str | None = None
+    days_past: int | None = None
+    max_clicks: int | None = None
 
 
 @dataclass(frozen=True)
@@ -131,6 +137,10 @@ def load_profile(profiles_dir: str, profile_name: str) -> BankProfile:
             state=valid_state,
             seconds=float(step_data["seconds"]) if "seconds" in step_data else None,
             timeout_ms=float(step_data["timeout_ms"]) if "timeout_ms" in step_data else None,
+            item_selector=step_data.get("item_selector"),
+            date_selector=step_data.get("date_selector"),
+            days_past=int(step_data["days_past"]) if "days_past" in step_data else None,
+            max_clicks=int(step_data["max_clicks"]) if "max_clicks" in step_data else None,
         )
         steps_list.append(step)
 
@@ -170,6 +180,7 @@ class StepExecutor:
         env: dict[str, str],
         download_dir: str,
         logger: Callable[[str], None] = print,
+        today_getter: Callable[[], date] | None = None,
     ) -> None:
         """Initialize the executor with page context and configuration."""
         self._page = page
@@ -178,6 +189,7 @@ class StepExecutor:
         self._env = env
         self._download_dir = download_dir
         self._logger = logger
+        self._today_getter = today_getter or date.today
 
     def _format_step_details(self, step: Step) -> str:
         """Format step details for console logging while masking sensitive values."""
@@ -206,6 +218,9 @@ class StepExecutor:
             return f"{sec}s"
         if step.action == "download":
             return f"selector='{step.selector}' (waiting for file download)"
+        if step.action in ("load_until_date", "click_until_date"):
+            days = step.days_past if step.days_past is not None else 100
+            return f"selector='{step.selector}' date_selector='{step.date_selector}' days_past={days}"
         return ""
 
     def _get_locator(self, step: Step) -> Locator:
@@ -219,6 +234,59 @@ class StepExecutor:
         if step.first:
             return locator.first
         return locator
+
+    def _has_reached_target_date(self, step: Step, threshold_date: date) -> bool:
+        """Check if any date header matches a date threshold_date or older."""
+        if not step.date_selector:
+            return False
+        headers = self._page.locator(step.date_selector).all_text_contents()
+        for text in headers:
+            parsed = parse_date_string(text, reference_date=self._today_getter())
+            if parsed and parsed <= threshold_date:
+                return True
+        return False
+
+    def _execute_load_until_date(self, step: Step, effective_timeout: float) -> None:
+        """Repeatedly click load more until date headers contain a date days_past or older."""
+        if not step.selector:
+            raise BrowserAutomationError("Load_until_date step requires a selector.")
+        if not step.date_selector:
+            raise BrowserAutomationError("Load_until_date step requires a date_selector.")
+
+        days_past = step.days_past if step.days_past is not None else 100
+        threshold_date = self._today_getter() - timedelta(days=days_past)
+        max_clicks = step.max_clicks if step.max_clicks is not None else 50
+        wait_sec = step.seconds if step.seconds is not None else 1.0
+
+        try:
+            self._page.wait_for_selector(step.date_selector, state="visible", timeout=effective_timeout)
+        except (PlaywrightTimeoutError, PlaywrightError):
+            pass
+
+        for iteration in range(1, max_clicks + 1):
+            if self._has_reached_target_date(step, threshold_date):
+                self._logger(f"Reached target date (>= {days_past} days in the past).")
+                break
+
+            btn = self._get_locator(step)
+            if not btn.is_visible():
+                self._logger("Load more element is not visible; stopping pagination.")
+                break
+
+            prev_count = self._page.locator(step.item_selector).count() if step.item_selector else 0
+            self._logger(f"Clicking '{step.selector}' (iteration {iteration}/{max_clicks})...")
+            btn.click(timeout=effective_timeout)
+
+            if step.item_selector:
+                try:
+                    self._page.wait_for_function(
+                        f"document.querySelectorAll('{step.item_selector}').length > {prev_count}",
+                        timeout=effective_timeout,
+                    )
+                except (PlaywrightTimeoutError, PlaywrightError):
+                    self._logger("Item count did not increase within timeout.")
+            if wait_sec > 0:
+                self._page.wait_for_timeout(wait_sec * 1000.0)
 
     def execute_step(self, step: Step, step_idx: int = 1, total_steps: int = 1) -> str | None:
         """Execute a single step and return the downloaded file path if this was a download step."""
@@ -281,6 +349,10 @@ class StepExecutor:
                 download.save_as(target_path)
                 return target_path
 
+            if step.action in ("load_until_date", "click_until_date"):
+                self._execute_load_until_date(step, effective_timeout)
+                return None
+
             raise BrowserAutomationError(f"Unsupported action '{step.action}'.")
         except (PlaywrightTimeoutError, PlaywrightError) as e:
             current_url = getattr(self._page, "url", "unknown")
@@ -325,12 +397,14 @@ class BankScraper:
         playwright_launcher: Callable[[], AbstractContextManager[Playwright]] | None = None,
         logger: Callable[[str], None] = print,
         prompt_getter: Callable[[str, str], str] | None = None,
+        today_getter: Callable[[], date] | None = None,
     ) -> None:
         """Initialize the scraper with environment and launcher dependencies."""
         self._env = env if env is not None else dict(os.environ)
         self._playwright_launcher = playwright_launcher or sync_playwright
         self._logger = logger
         self._prompt_getter = prompt_getter or default_prompt_getter
+        self._today_getter = today_getter or date.today
 
     def _resolve_credentials(self, profile: BankProfile) -> dict[str, str]:
         """Verify and resolve required credentials from the environment or user prompt."""
@@ -354,6 +428,7 @@ class BankScraper:
             env=self._env,
             download_dir=download_dir,
             logger=self._logger,
+            today_getter=self._today_getter,
         )
         total = len(profile.steps)
         self._logger(f"Running profile '{profile.name}' ({total} steps) for bank '{profile.bank}'...")
