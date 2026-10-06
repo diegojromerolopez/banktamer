@@ -40,6 +40,8 @@ class TestCli(unittest.TestCase):
             rules_dir=None,
             report="terminal",
             output=None,
+            profile=None,
+            env_file=None,
         )
 
         mock_load_rules.return_value = self.dummy_rules
@@ -86,6 +88,8 @@ class TestCli(unittest.TestCase):
             rules_dir=None,
             report="pdf",
             output="custom_report.pdf",
+            profile=None,
+            env_file=None,
         )
 
         mock_reader.return_value.read.return_value = [MagicMock()]
@@ -131,6 +135,8 @@ class TestCli(unittest.TestCase):
             ai_key=None,
             ai_url=None,
             ai_model=None,
+            profile=None,
+            env_file=None,
         )
         mock_getenv.return_value = None
 
@@ -169,6 +175,8 @@ class TestCli(unittest.TestCase):
             rules_dir=None,
             report="terminal",
             output=None,
+            profile=None,
+            env_file=None,
         )
         mock_reader.return_value.read.return_value = []
 
@@ -200,6 +208,8 @@ class TestCli(unittest.TestCase):
             rules_dir=None,
             report="terminal",
             output=None,
+            profile=None,
+            env_file=None,
         )
         mock_reader.return_value.read.side_effect = ValueError("Specific logic error")
 
@@ -288,7 +298,13 @@ class TestCli(unittest.TestCase):
         self, mock_exit: MagicMock, mock_print: MagicMock, mock_args: MagicMock, mock_run: MagicMock
     ) -> None:
         mock_args.return_value = MagicMock(
-            bank="santander", files=["test.xlsx"], config_dir=None, schemas=None, rules_dir=None
+            bank="santander",
+            files=["test.xlsx"],
+            config_dir=None,
+            schemas=None,
+            rules_dir=None,
+            profile=None,
+            env_file=None,
         )
         mock_run.side_effect = Exception("Surprise error")
 

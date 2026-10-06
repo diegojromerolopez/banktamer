@@ -196,8 +196,11 @@ def load_environment(env_file: str | None = None) -> None:
     """Load environment variables from specified or default .env files."""
     from dotenv import load_dotenv
 
-    if env_file:
+    if isinstance(env_file, str) and env_file:
         load_dotenv(dotenv_path=env_file, override=False)
+        return
+
+    if env_file is not None:
         return
 
     # 1. Local .env in current directory

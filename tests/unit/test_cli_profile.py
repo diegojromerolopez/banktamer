@@ -2,6 +2,7 @@
 
 import argparse
 import sys
+from typing import cast
 import unittest
 from unittest.mock import MagicMock, call, patch
 
@@ -260,6 +261,11 @@ class TestCliProfile(unittest.TestCase):
     def test_load_environment_no_file(self, mock_load_dotenv: MagicMock, mock_exists: MagicMock) -> None:
         mock_exists.return_value = False
         load_environment()
+        self.assertEqual(mock_load_dotenv.call_args_list, [])
+
+    @patch("dotenv.load_dotenv")
+    def test_load_environment_non_string_ignored(self, mock_load_dotenv: MagicMock) -> None:
+        load_environment(env_file=cast(str, MagicMock()))
         self.assertEqual(mock_load_dotenv.call_args_list, [])
 
 
