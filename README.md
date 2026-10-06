@@ -96,23 +96,116 @@ banktamer --bank santander --category common --files data.xlsx --ai ollama
 
 ### Automated Bank Downloads (`--profile`)
 
-BankTamer supports automated bank scraping via Playwright to log in, navigate, and download your transaction files directly.
+BankTamer supports automated bank scraping via Playwright to log in, navigate, handle dynamic pagination, and download your transaction files directly.
 
-Bank profiles are YAML files configured in `config/profiles/<profile_name>.yaml`. For example, with `santander.yaml`:
+#### Prerequisites
+Ensure the Playwright Chromium browser binary is installed:
+```bash
+uv run playwright install chromium
+```
 
-1. Set your credentials in environment variables:
+#### Running with a Profile
+1. Provide your bank credentials via environment variables or a `.env` file (see `.env.example`):
    ```bash
-   export SANTANDER_USERNAME="your-id"
+   export SANTANDER_USERNAME="your-nif"
    export SANTANDER_PASSWORD="your-password"
    ```
-2. Run BankTamer with the profile:
+   > **Note**: If `SANTANDER_PASSWORD` is empty or not set, BankTamer will automatically prompt you securely in the terminal using masked input.
+
+2. Run BankTamer with the desired profile:
    ```bash
    banktamer --profile santander
    ```
-   You can also specify `--download-dir` or `--no-headless` to watch the browser in action:
-   ```bash
-   banktamer --profile santander --no-headless --download-dir ./my_statements
-   ```
+
+3. CLI options for profiles:
+   - `--profile <name>`: Name of the bank profile (matches `config/profiles/<name>.yaml`).
+   - `--download-dir <path>`: Directory where downloaded statement files will be stored (defaults to `./downloads`).
+   - `--headless` / `--no-headless`: Run browser in headless mode (default) or headful mode to watch the automation in real time.
+   - `--env-file <path>`: Path to a custom `.env` file for credentials (defaults to `./.env` if present).
+
+#### Bank Profile Structure (`config/profiles/<profile_name>.yaml`)
+
+A profile defines the bank association, browser settings, credentials, and step-by-step automation pipeline:
+
+```yaml
+bank: "santander-es"                             # Target bank schema in schemas.json
+url: "https://particulares.bancosantander.es/oneweb/"
+headless: true                                  # Default headless setting (can be overridden via CLI)
+timeout_ms: 30000                               # Default step timeout in milliseconds
+
+credentials:
+  username:
+    env: "SANTANDER_USERNAME"
+  password:
+    env: "SANTANDER_PASSWORD"
+
+steps:
+  - action: "navigate"
+    url: "https://particulares.bancosantander.es/oneweb/"
+
+  - action: "fill"
+    selector: "#san-text-input-1"
+    value: "${username}"
+
+  - action: "fill"
+    selector: "#san-text-input-0"
+    value: "${password}"
+
+  - action: "click"
+    selector: "button.san-ending-button"
+
+  - action: "wait_for_url"
+    url: "https://particulares.bancosantander.es/oneweb/global-position"
+
+  - action: "click"
+    selector: "button.san-product-cards__interactive-layer"
+    first: true
+
+  - action: "wait_for_url"
+    url: "https://particulares.bancosantander.es/oneweb/accounts"
+
+  - action: "load_until_date"
+    selector: "san-action-link"
+    has_text: "Ver más movimientos"
+    item_selector: "san-transaction-list-item"
+    date_selector: "san-transaction-list-header > h4"
+    days_past: 100
+    seconds: 1.0
+    max_clicks: 50
+
+  - action: "click"
+    selector: "button[aria-label='Acción 3 de 3: Descargar movimientos']"
+
+  - action: "wait_for_selector"
+    selector: "button[aria-label='Descargar en formato Excel']"
+
+  - action: "click"
+    selector: "button[aria-label='Descargar en formato Excel']"
+
+  - action: "wait"
+    seconds: 2
+
+  - action: "download"
+    selector: "san-ending-button"
+    has_text: "Descargar"
+```
+
+#### Supported Step Actions
+
+| Action | Description | Parameters |
+| :--- | :--- | :--- |
+| `navigate` | Navigates the browser to the specified URL. | `url`, `timeout_ms` |
+| `fill` | Fills an input element. Resolves `${username}`, `${password}`, or any `${ENV_VAR}`. Automatically masked in console logs. | `selector`, `value`, `timeout_ms` |
+| `click` | Clicks a button or element. | `selector`, `has_text` (optional), `first` (bool, optional), `timeout_ms` |
+| `wait_for_url` | Waits until browser URL matches the target URL. | `url`, `timeout_ms` |
+| `wait_for_selector` | Waits until element matches a state (`visible`, `attached`, `hidden`, `detached`). | `selector`, `state`, `timeout_ms` |
+| `wait` | Suspends execution for a specified duration. | `seconds` |
+| `load_until_date` | Automated dynamic pagination. Clicks the load-more button (`selector`) and waits for `item_selector` count to increase until date headers (`date_selector`) contain a date `days_past` days in the past or older. Supports Spanish date formats (e.g. `"Lunes, 27 Julio"`). Stops gracefully if button is not visible or `max_clicks` is reached. | `selector`, `has_text`, `item_selector`, `date_selector`, `days_past`, `max_clicks`, `seconds`, `timeout_ms` |
+| `download` | Clicks the download trigger element and intercepts the browser file download event, saving the file to the download directory. | `selector`, `has_text` (optional), `first` (bool, optional), `timeout_ms` |
+
+#### Error Handling and Debugging
+- Each step is logged to the terminal with sanitized parameters (passwords are masked with `********`).
+- If any step fails or times out, BankTamer automatically captures a debug screenshot to `<download-dir>/automation_error.png` to help inspect the browser state.
 
 ### AI Financial Analysis
 

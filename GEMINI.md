@@ -31,6 +31,8 @@ The codebase is organized into a single package `banktamer` with specialized mod
 - `analytics.py`: **Data Processor**. Transforms a flat list of categorized transactions into structured monthly reports, calculating totals and identifying category leaders (max transactions).
 - `models.py`: **Domain Entities**. Defines the core data structures used across the app (`Transaction`, `CategoryStats`).
 - `cli.py`: **User Interface**. Handles command-line arguments and orchestrates the financial pipeline.
+- `scraper.py`: **Bank Automation Engine**. Uses Playwright to automate logging into online banking portals and downloading transaction exports based on YAML profiles.
+- `date_utils.py`: **Localized Date Utilities**. Robust parsing of localized date strings (e.g. Spanish format "Lunes, 27 Julio") for pagination.
 - `report/`: **Visualization Layer**. Contains logic for rendering reports.
     - `terminal.py`: Handles rich terminal output with always-on bar and pie charts.
     - `pdf.py`: Handles generation of professional PDF reports with charts and summaries.
@@ -39,10 +41,11 @@ The codebase is organized into a single package `banktamer` with specialized mod
 
 BankTamer follows a straightforward linear pipeline:
 
-1.  **Ingestion (`io.py`)**: Uses `ExcelReader` to load XLS/XLSX files based on bank-specific schemas defined in `banktamer/config/schemas.json`.
-2.  **Categorization (`categorizer.py`)**: Applies regex rules from `banktamer/config/categories/<category>.yaml`. If `.default.yaml` is present in the same folder, its rules are loaded first and merged with the specified category.
-3.  **Analytics (`analytics.py`)**: Aggregates transactions into monthly buckets, calculates totals, and identifies the most significant transactions in each category.
-4.  **Reporting (`cli.py`)**: Formats and prints the processed data to the terminal.
+1.  **Automation (optional, `scraper.py`)**: Uses Playwright and profiles defined in `banktamer/config/profiles/<profile>.yaml` to log in, handle pagination (`load_until_date`), and download transaction spreadsheets.
+2.  **Ingestion (`io.py`)**: Uses `ExcelReader` to load XLS/XLSX files based on bank-specific schemas defined in `banktamer/config/schemas.json`.
+3.  **Categorization (`categorizer.py`)**: Applies regex rules from `banktamer/config/categories/<category>.yaml`. If `.default.yaml` is present in the same folder, its rules are loaded first and merged with the specified category.
+4.  **Analytics (`analytics.py`)**: Aggregates transactions into monthly buckets, calculates totals, and identifies the most significant transactions in each category.
+5.  **Reporting (`cli.py`)**: Formats and prints the processed data to the terminal.
 
 ## Distribution & Portability
 
