@@ -60,6 +60,7 @@ class TestCliAi(unittest.TestCase):
             profile=None,
         )
 
+        # pyrefly: ignore [implicit-any-empty-container]
         mock_load_rules.return_value = {}
         mock_reader.return_value.read.return_value = [Transaction(date(2024, 1, 1), "Test", -10.0)]
 
@@ -68,6 +69,7 @@ class TestCliAi(unittest.TestCase):
                 "total_income": 0.0,
                 "total_expenses": -10.0,
                 "categories": {"Food": CategoryStats(total=-10.0, max_txn=None)},
+                # pyrefly: ignore [implicit-any-empty-container]
                 "unknown_concepts": [],
             }
         }
@@ -132,6 +134,7 @@ class TestCliAi(unittest.TestCase):
             profile=None,
         )
         mock_pipeline.return_value = {
+            # pyrefly: ignore [implicit-any-empty-container]
             "2024-01": {"total_income": 0, "total_expenses": 0, "categories": {}, "unknown_concepts": []}
         }
 
@@ -180,6 +183,7 @@ class TestCliAi(unittest.TestCase):
             profile=None,
         )
         mock_pipeline.return_value = {
+            # pyrefly: ignore [implicit-any-empty-container]
             "2024-01": {"total_income": 0, "total_expenses": 0, "categories": {}, "unknown_concepts": []}
         }
 
@@ -230,6 +234,7 @@ class TestCliAi(unittest.TestCase):
             profile=None,
         )
         mock_pipeline.return_value = {
+            # pyrefly: ignore [implicit-any-empty-container]
             "2024-01": {"total_income": 0, "total_expenses": 0, "categories": {}, "unknown_concepts": []}
         }
 
