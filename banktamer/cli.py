@@ -2,14 +2,16 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 from typing import TypedDict
 
+from banktamer.ai import AIProviderFactory
 from banktamer.analytics import AnalyticsProcessor, MonthReport
 from banktamer.categorizer import Categorizer
 from banktamer.io import ExcelReader
 from banktamer.models import Transaction
 from banktamer.report.terminal import print_ai_analysis, print_report
-from banktamer.ai import AIProviderFactory
+from banktamer.scraper import BankScraper, BrowserAutomationError, ProfileError, load_profile
 
 
 class ConfigPaths(TypedDict):
@@ -18,6 +20,7 @@ class ConfigPaths(TypedDict):
     schemas: str
     rules_dir: str
     config_dir: str
+    profiles_dir: str
 
 
 def resolve_config(args: argparse.Namespace) -> ConfigPaths:
@@ -25,6 +28,8 @@ def resolve_config(args: argparse.Namespace) -> ConfigPaths:
     config_dir = args.config_dir or "config"
     schemas_path = args.schemas or os.path.join(config_dir, "schemas.json")
     rules_dir = args.rules_dir or os.path.join(config_dir, "categories")
+    profiles_cli = getattr(args, "profiles_dir", None)
+    profiles_dir = profiles_cli if isinstance(profiles_cli, str) else os.path.join(config_dir, "profiles")
 
     # Fallback logic
     if not os.path.exists(schemas_path) and not args.schemas:
@@ -34,7 +39,10 @@ def resolve_config(args: argparse.Namespace) -> ConfigPaths:
 
         if os.path.exists(home_schemas):
             return ConfigPaths(
-                schemas=home_schemas, rules_dir=os.path.join(home_config, "categories"), config_dir=home_config
+                schemas=home_schemas,
+                rules_dir=os.path.join(home_config, "categories"),
+                config_dir=home_config,
+                profiles_dir=profiles_cli if isinstance(profiles_cli, str) else os.path.join(home_config, "profiles"),
             )
 
         # 2. Try package internal config
@@ -42,10 +50,15 @@ def resolve_config(args: argparse.Namespace) -> ConfigPaths:
         package_schemas = os.path.join(package_config, "schemas.json")
         if os.path.exists(package_schemas):
             return ConfigPaths(
-                schemas=package_schemas, rules_dir=os.path.join(package_config, "categories"), config_dir=package_config
+                schemas=package_schemas,
+                rules_dir=os.path.join(package_config, "categories"),
+                config_dir=package_config,
+                profiles_dir=profiles_cli
+                if isinstance(profiles_cli, str)
+                else os.path.join(package_config, "profiles"),
             )
 
-    return ConfigPaths(schemas=schemas_path, rules_dir=rules_dir, config_dir=config_dir)
+    return ConfigPaths(schemas=schemas_path, rules_dir=rules_dir, config_dir=config_dir, profiles_dir=profiles_dir)
 
 
 def load_rules(rules_dir: str, category: str | None) -> dict[str, list[str]]:
@@ -179,12 +192,63 @@ def generate_report(args: argparse.Namespace, report_data: dict[str, MonthReport
             print(f"AI Analysis failed: {e}")
 
 
+def load_environment(env_file: str | None = None) -> None:
+    """Load environment variables from specified or default .env files."""
+    from dotenv import load_dotenv
+
+    if isinstance(env_file, str) and env_file:
+        load_dotenv(dotenv_path=env_file, override=False)
+        return
+
+    if env_file is not None:
+        return
+
+    # 1. Local .env in current directory
+    if os.path.exists(".env"):
+        load_dotenv(dotenv_path=".env", override=False)
+
+    # 2. Home directory ~/.banktamer/.env
+    home_env = os.path.expanduser("~/.banktamer/.env")
+    if os.path.exists(home_env):
+        load_dotenv(dotenv_path=home_env, override=False)
+
+
+def handle_profile_download(
+    args: argparse.Namespace,
+    config: ConfigPaths,
+    scraper: BankScraper | None = None,
+) -> None:
+    """Download transactions using a bank profile if specified."""
+    profile_name = getattr(args, "profile", None)
+    if not profile_name or not isinstance(profile_name, str):
+        return
+
+    profiles_dir = config.get("profiles_dir", os.path.join(config.get("config_dir", "config"), "profiles"))
+    profile = load_profile(profiles_dir, profile_name)
+    if not args.bank:
+        args.bank = profile.bank
+
+    if not args.files:
+        download_dir = getattr(args, "download_dir", None) or tempfile.mkdtemp(prefix="banktamer_")
+        headless_val = getattr(args, "headless", None)
+        active_scraper = scraper or BankScraper()
+        downloaded_file = active_scraper.download(profile=profile, download_dir=download_dir, headless=headless_val)
+        args.files = [downloaded_file]
+
+
 def main() -> None:
     """Entry point for the BankTamer CLI."""
     parser = argparse.ArgumentParser(description="BankTamer CLI - Process bank transaction files.")
-    parser.add_argument("--bank", required=True, help="Bank name (e.g., santander)")
+    parser.add_argument("--bank", required=False, help="Bank name (e.g., santander-es)")
     parser.add_argument("--category", required=False, help="Category file name (e.g., common)")
-    parser.add_argument("--files", required=True, nargs="+", help="Path to the XLS/XLSX file(s)")
+    parser.add_argument("--files", required=False, nargs="+", help="Path to the XLS/XLSX file(s)")
+    parser.add_argument("--profile", required=False, help="Bank profile name for automated download (e.g. santander)")
+    parser.add_argument("--profiles-dir", help="Path to bank profiles directory")
+    parser.add_argument("--download-dir", help="Directory where downloaded files are saved")
+    parser.add_argument(
+        "--headless", action=argparse.BooleanOptionalAction, default=None, help="Run browser in headless mode"
+    )
+    parser.add_argument("--env-file", help="Path to .env file (default: ./.env or ~/.banktamer/.env)")
     parser.add_argument("--config-dir", help="Base directory for configurations (default: ./config)")
     parser.add_argument("--schemas", help="Path to schemas.json")
     parser.add_argument("--rules-dir", help="Path to categories rules directory")
@@ -200,12 +264,20 @@ def main() -> None:
     parser.add_argument("--ai-model", help="Override default model for the AI provider")
 
     args = parser.parse_args()
+    load_environment(getattr(args, "env_file", None))
+
+    if not args.bank and not args.profile:
+        parser.error("one of the arguments --bank or --profile is required")
+    if not args.files and not args.profile:
+        parser.error("one of the arguments --files or --profile is required")
+
     config = resolve_config(args)
 
     try:
+        handle_profile_download(args, config)
         report_data = run_pipeline(args, config)
         generate_report(args, report_data, config)
-    except (ValueError, FileNotFoundError, json.JSONDecodeError) as e:
+    except (ValueError, FileNotFoundError, json.JSONDecodeError, ProfileError, BrowserAutomationError) as e:
         print(f"Configuration or Data Error: {e}", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
